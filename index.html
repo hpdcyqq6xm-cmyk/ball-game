@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>MMORPG 原型 - 完整職業 + Loot 優化版</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            background: linear-gradient(135deg, #0a0a0a, #1a1a2e); 
+            color: #fff; 
+            font-family: 'Arial Black', Arial, sans-serif; 
+            height: 100vh; 
+            overflow: hidden;
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        canvas { 
+            width: 100vw; 
+            height: 100vh; 
+            display: block; 
+            background: radial-gradient(circle at center, #2a2a4a 0%, #111 70%);
+            border: none;
+            cursor: pointer;
+        }
+        #ui { 
+            position: fixed; 
+            top: 15px; 
+            left: 15px; 
+            background: rgba(0,0,0,0.85); 
+            padding: 20px; 
+            border-radius: 15px;
+            font-size: clamp(14px, 3.5vw, 18px); 
+            backdrop-filter: blur(15px);
+            box-shadow: 0 0 30px rgba(0,255,255,0.3);
+        }
+        #ui div { margin: 8px 0; }
+        #bottomUI {
+            position: fixed; 
+            bottom: 20px; 
+            left: 50%; 
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.85); 
+            padding: 15px 25px; 
+            border-radius: 20px;
+            display: flex; 
+            gap: 10px; 
+            align-items: center; 
+            font-size: clamp(12px, 3vw, 16px);
+        }
+        .skill-btn { 
+            width: 60px; 
+            height: 60px; 
+            border-radius: 50%; 
+            background: linear-gradient(45deg, #4A90E2, #357ABD); 
+            border: 2px solid #fff; 
+            cursor: pointer; 
+            position: relative;
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            font-size: 24px;
+            transition: all 0.2s; 
+            box-shadow: 0 0 15px rgba(74,144,226,0.5);
+        }
+        .skill-btn.cd { 
+            opacity: 0.5; 
+            cursor: not-allowed; 
+        }
+        .cd-bar { 
+            position: absolute; 
+            bottom: -5px; 
+            left: 50%; 
+            transform: translateX(-50%);
+            width: 80%; 
+            height: 4px; 
+            background: rgba(255,255,255,0.8); 
+            border-radius: 2px; 
+        }
+        .cd-fill { 
+            height: 100%; 
+            background: linear-gradient(90deg, #ff0000, #ffff00); 
+            transition: width 0.1s; 
+        }
+        #controls { 
+            position: fixed; 
+            bottom: 20px; 
+            right: 20px; 
+            background: rgba(0,0,0,0.7);
+            padding: 15px; 
+            border-radius: 15px; 
+            font-size: clamp(12px, 2.5vw, 14px); 
+            text-align: center; 
+            color: #ccc; 
+        }
+        #shopBtn { 
+            position: fixed; 
+            top: 50%; 
+            right: 20px; 
+            transform: translateY(-50%);
+            width: 50px; 
+            height: 50px; 
+            border-radius: 50%; 
+            background: #FFD700; 
+            color: #000;
+            border: none; 
+            font-size: 20px; 
+            cursor: pointer; 
+            box-shadow: 0 0 20px #FFD700; 
+        }
+        #shopModal, #classSelect, #inventory { 
+            display: none; 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%;
+            background: rgba(0,0,0,0.9); 
+            z-index: 100; 
+            align-items: center; 
+            justify-content: center; 
+        }
+        #shopContent, #classContent, #invContent { 
+            background: #222; 
+            padding: 30px; 
+            border-radius: 20px; 
+            text-align: center; 
+            max-width: 350px; 
+        }
+        .item-btn, .class-btn { 
+            margin: 10px; 
+            padding: 12px 24px; 
+            background: #4CAF50; 
+            color: white; 
+            border: none;
+            border-radius: 10px; 
+            cursor: pointer; 
+            font-size: 16px; 
+        }
+        .class-btn { background: linear-gradient(45deg, #4A90E2, #357ABD); }
+        #invList { max-height: 300px; overflow-y: auto; text-align: left; }
+        .equip-btn { width: 100%; margin: 5px 0; background: #FFD700; color: #000; }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <button id="shopBtn" title="商店">🛒</button>
+    <div id="shopModal">
+        <div id="shopContent">
+            <h2>商店</h2>
+            <p>金幣: <span id="shopGold">0</span></p>
+            <button class="item-btn" onclick="buyPotion()">HP藥水 x5 (50金)</button>
+            <button class="item-btn" onclick="buySpeed()">速度+1 (200金)</button>
+            <button class="item-btn" onclick="closeShop()">關閉</button>
+        </div>
+    </div>
+    <div id="classSelect">
+        <div id="classContent">
+            <h2>選擇職業</h2>
+            <p>決定你的遊玩風格</p>
+            <button class="class-btn" onclick="selectClass('warrior')">⚔️ 戰士<br>高傷近戰，衝鋒陷陣</button>
+            <button class="class-btn" onclick="selectClass('mage')">🔮 法師<br>AoE 遠程，大範圍轟炸</button>
+            <button class="class-btn" onclick="selectClass('ranger')">🏹 遊俠<br>寵物輔助，靈活游擊</button>
+        </div>
+    </div>
+    <div id="inventory">
+        <div id="invContent">
+            <h2>背包</h2>
+            <div id="invList"></div>
+            <button class="item-btn" onclick="closeInv()">關閉</button>
+        </div>
+    </div>
+    <div id="ui">
+        <div>職業: <span id="playerClass">未選擇</span> | 等級: <span id="playerLevel">1</span> | EXP: <span id="exp">0</span>/<span id="nextExp">100</span></div>
+        <div>HP: <span id="playerHp">100</span>/<span id="playerMaxHp">100</span> | 金幣: <span id="gold">0</span></div>
+        <div>怪物: <span id="monsterCount">0</span></div>
+    </div>
+    <div id="bottomUI">
+        <div class="skill-btn" id="skill1" title="Q:衝刺斬">⚔️<div class="cd-bar"><div class="cd-fill" id="cd1"></div></div></div>
+        <div class="skill-btn" id="skill2" title="E:旋轉斬">🌀<div class="cd-bar"><div class="cd-fill" id="cd2"></div></div></div>
+        <div class="skill-btn" id="skill3" title="R:遠程箭">🏹<div class="cd-bar"><div class="cd-fill" id="cd3"></div></div></div>
+    </div>
+    <div id="controls">
+        WASD/點擊移動 | Q/E/R技能 | Shift閃避 | I背包 | S商店 | R重啟
+    </div>
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const elements = {
+            playerClassEl: document.getElementById('playerClass'),
+            playerLevel: document.getElementById('playerLevel'), 
+            exp: document.getElementById('exp'),
+            nextExp: document.getElementById('nextExp'), 
+            playerHp: document.getElementById('playerHp'),
+            playerMaxHp: document.getElementById('playerMaxHp'), 
+            gold: document.getElementById('gold'),
+            monsterCount: document.getElementById('monsterCount'), 
+            shopGold: document.getElementById('shopGold'),
+            skill1: document.getElementById('skill1'), 
+            skill2: document.getElementById('skill2'),
+            skill3: document.getElementById('skill3'), 
+            cd1: document.getElementById('cd1'),
+            cd2: document.getElementById('cd2'), 
+            cd3: document.getElementById('cd3'),
+            invList: document.getElementById('invList')
+        };
+
+        let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playSound(freq, duration, type = 'sine') {
+            let oscillator = audioCtx.createOscillator();
+            let gainNode = audioCtx.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            oscillator.frequency.value = freq;
+            oscillator.type = type;
+            gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+            oscillator.start(audioCtx.currentTime);
+            oscillator.stop(audioCtx.currentTime + duration);
+        }
+
+        // 動態尺寸
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // 遊戲狀態
+        let playerClass = null;
+        let player = { 
+            x: 0, y: 0, hp: 100, maxHp: 100, level: 1, exp: 0, nextExp: 100, gold: 0,
+            speed: 5, size: 25, vx: 0, vy: 0, lastAttack: 0, dodgeTime: 0, dodgeCD: 0,
+            dmgMod: 1, aoeRange: 60, petActive: false 
+        };
+        let inventory = []; // Loot 背包
+        let equipped = { hpBonus: 0, dmgBonus: 0 };
+        let monsters = [];
+        let particles = [];
+        let projectiles = [];
+        let targetX = 0, targetY = 0, hasTarget = false;
+        let keys = {}, gameOver = false, gameStarted = false;
+        const MAX_MONSTERS = 5;
+        const ATTACK_INTERVAL = 800;
+        const DODGE_CD = 3000, DODGE_TIME = 800;
+
+        // 技能 (職業影響)
+        const skills = [
+            { name: 'dashSlash', key: 'q', cd: 2000, active: false, cdTime: 0 },
+            { name: 'spinSlash', key: 'e', cd: 3000, active: false, cdTime: 0 },
+            { name: 'arrow', key: 'r', cd: 2500, active: false, cdTime: 0 }
+        ];
+
+        // 職業設定
+        const classConfig = {
+            warrior: { speed: 4.8, dmgMod: 1.5, aoeRange: 50, petActive: false, skillMods: {0: {cd: 1500}, 1: {dmg: 1.3}} },
+            mage: { speed: 5.5, dmgMod: 1.2, aoeRange: 90, petActive: false, skillMods: {1: {range: 1.5, dmg: 1.4}, 2: {dmg: 1.5}} },
+            ranger: { speed: 5.2, dmgMod: 1.3, aoeRange: 70, petActive: true, skillMods: {2: {speed: 1.5, count: 2}} }
+        };
+
+        // 初始化玩家
+        function initPlayer() {
+            player.x = canvas.width / 2;
+            player.y = canvas.height / 2;
+            targetX = player.x; targetY = player.y; hasTarget = false;
+        }
+
+        // 選擇職業
+        function selectClass(cls) {
+            playerClass = cls;
+            const config = classConfig[cls];
+            player.speed = config.speed;
+            player.dmgMod = config.dmgMod;
+            player.aoeRange = config.aoeRange;
+            player.petActive = config.petActive;
+            elements.playerClassEl.textContent = cls;
+            document.getElementById('classSelect').style.display = 'none';
+            resetGame();
+            gameStarted = true;
+        }
+
+        // 生成怪物
+        function spawnMonster() {
+            if (monsters.length < MAX_MONSTERS && gameStarted) {
+                monsters.push({
+                    x: Math.random() * (canvas.width - 100) + 50,
+                    y: Math.random() * (canvas.height - 100) + 50,
+                    hp: 40 + player.level * 10, maxHp: 40 + player.level * 10,
+                    speed: 1.8 + player.level * 0.2, size: 20, lastAttack: 0, alive: true,
+                    goldDrop: 10 + Math.floor(Math.random() * 20)
+                });
+            }
+        }
+
+        // 粒子效果
+        function createParticles(x, y, color, count = 15, speed = 5, life = 40) {
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x, y, vx: (Math.random() - 0.5) * speed, vy: (Math.random() - 0.5) * speed,
+                    life, maxLife: life, color, size: Math.random() * 4 + 2
+                });
+            }
+        }
+
+        // 更新粒子
+        function updateParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                let p = particles[i];
+                p.x += p.vx; p.y += p.vy;
+                p.life--;
+                p.size *= 0.98;
+                if (p.life <= 0) {
+                    particles.splice(i, 1);
+                    continue;
+                }
+                ctx.save();
+                ctx.globalAlpha = p.life / p.maxLife;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        // 更新投射物
+        function updateProjectiles() {
+            for (let i = projectiles.length - 1; i >= 0; i--) {
+                let proj = projectiles[i];
+                proj.x += proj.vx;
+                proj.y += proj.vy;
+                if (proj.x < 0 || proj.x > canvas.width || proj.y < 0 || proj.y > canvas.height) {
+                    projectiles.splice(i, 1);
+                    continue;
+                }
+                ctx.save();
+                ctx.translate(proj.x, proj.y);
+                ctx.fillStyle = proj.color;
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = proj.color;
+                ctx.beginPath();
+                ctx.arc(0, 0, proj.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+
+                for (let j = monsters.length - 1; j >= 0; j--) {
+                    let m = monsters[j];
+                    if (m.alive && Math.hypot(m.x - proj.x, m.y - proj.y) < 30) {
+                        m.hp -= (25 + player.level * 3) * player.dmgMod;
+                        createParticles(m.x, m.y, '#FFD700', 20);
+                        playSound(800, 0.1);
+                        projectiles.splice(i, 1);
+                        if (m.hp <= 0) killMonster(m);
+                        break;
+                    }
+                }
+            }
+        }
+
+        // 擊殺怪物
+        function killMonster(m) {
+            player.exp += 20 + player.level * 5;
+            player.gold += m.goldDrop;
+            createParticles(m.x, m.y, '#FF4444', 30, 8);
+            playSound(200, 0.2, 'square');
+            dropLoot(); // Loot 掉落
+            if (player.exp >= player.nextExp) levelUp();
+            m.alive = false;
+            setTimeout(() => {
+                let idx = monsters.indexOf(m);
+                if (idx > -1) monsters.splice(idx, 1);
+            }, 1000);
+        }
+
+        // Loot 掉落
+        function dropLoot() {
+            if (Math.random() < 0.2) { // 20% 機率
+                let names = playerClass === 'warrior' ? ['鐵劍', '戰斧'] : playerClass === 'mage' ? ['法杖', '魔晶'] : ['獵弓', '箭袋'];
+                let loot = {
+                    name: names[Math.floor(Math.random() * names.length)],
+                    rarity: Math.random() > 0.6 ? '紫' : Math.random() > 0.3 ? '藍' : '綠',
+                    hp: 15 + Math.random() * 35,
+                    dmg: 4 + Math.random() * 12
+                };
+                inventory.push(loot);
+                createParticles(player.x, player.y, '#FFD700', 10);
+                playSound(1000, 0.15);
+            }
+        }
+
+        // 升級
+        function levelUp() {
+            player.level++;
+            player.exp = 0;
+            player.nextExp = Math.floor(player.nextExp * 1.5);
+            player.maxHp += 30 + equipped.hpBonus * 0.1;
+            player.hp = player.maxHp;
+            player.speed += 0.3;
+            createParticles(player.x, player.y, '#00FF88', 50, 10);
+            playSound(1200, 0.3);
+        }
+
+        // 使用技能 (職業模組化)
+        function useSkill(index) {
+            let skill = skills[index];
+            if (Date.now() - skill.cdTime < skill.cd) return;
+            let config = classConfig[playerClass]?.skillMods?.[index] || {};
+            skill.cdTime = Date.now();
+            skill.active = true;
+            playSound(1000 + index * 200, 0.15);
+            updateSkillUI();
+            setTimeout(() => { skill.active = false; }, 300);
+        }
+
+        // 更新技能 UI
+        function updateSkillUI() {
+            skills.forEach((s, i) => {
+                let btn = elements[`skill${i+1}`];
+                let cd = elements[`cd${i+1}`];
+                let progress = Math.max(0, 1 - (Date.now() - s.cdTime) / s.cd);
+                btn.classList.toggle('cd', progress > 0 && !s.active);
+                cd.style.width = `${progress * 100}%`;
+            });
+        }
+
+        // 商店
+        function toggleShop() {
+            let modal = document.getElementById('shopModal');
+            elements.shopGold.textContent = player.gold;
+            modal.style.display = modal.style.display === 'flex' ? 'none' : 'flex';
+        }
+        function buyPotion() {
+            if (player.gold >= 50) {
+                player.gold -= 50;
+                player.hp = Math.min(player.maxHp, player.hp + 100);
+                playSound(900, 0.2);
+            }
+        }
+        function buySpeed() {
+            if (player.gold >= 200) {
+                player.gold -= 200;
+                player.speed += 1;
+                playSound(1100, 0.2);
+            }
+        }
+        function closeShop() {
+            document.getElementById('shopModal').style.display = 'none';
+        }
+
+        // 背包
+        function toggleInv() {
+            elements.invList.innerHTML = inventory.map((item, i) => 
+                `<button class="equip-btn" onclick="equipItem(${i})">${item.name} [${item.rarity}] +${Math.floor(item.hp)}HP +${Math.floor(item.dmg)}傷</button>`
+            ).join('');
+            document.getElementById('inventory').style.display = 'flex';
+        }
+        function equipItem(i) {
+            let item = inventory.splice(i, 1)[0];
+            equipped.hpBonus += item.hp;
+            equipped.dmgBonus += item.dmg;
+            player.maxHp += item.hp;
+            player.hp += item.hp;
+            player.dmgMod += item.dmg / 100;
+            playSound(950, 0.25);
+            toggleInv(); // 重新關閉並刷新
+        }
+        function closeInv() {
+            document.getElementById('inventory').style.display = 'none';
+        }
+
+        // 事件綁定
+        window.addEventListener('keydown', (e) => {
+            let key = e.key.toLowerCase();
+            keys[key] = true;
+            if (key === 'r' && gameOver) resetGame();
+            if (key === 's') toggleShop();
+            if (key === 'i') toggleInv();
+            skills.forEach((s, i) => {
+                if (key === s.key) useSkill(i);
+            });
+        });
+        window.addEventListener('keyup', (e) => {
+            keys[e.key.toLowerCase()] = false;
+        });
+
+        canvas.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            canvas.setPointerCapture(e.pointerId);
+            const rect = canvas.getBoundingClientRect();
+            targetX = (e.clientX - rect.left) * (canvas.width / rect.width);
+            targetY = (e.clientY - rect.top) * (canvas.height / rect.height);
+            hasTarget = true;
+        });
+
+        document.getElementById('shopBtn').onclick = toggleShop;
+
+        // 更新 UI
+        function updateUI() {
+            elements.playerLevel.textContent = player.level;
+            elements.exp.textContent = player.exp;
+            elements.nextExp.textContent = player.nextExp;
+            elements.playerHp.textContent = Math.floor(player.hp);
+            elements.playerMaxHp.textContent = player.maxHp;
+            elements.gold.textContent = player.gold;
+            elements.monsterCount.textContent = monsters.filter(m => m.alive).length;
+            elements.shopGold.textContent = player.gold;
+            updateSkillUI();
+        }
+
+        function distance(o1, o2) {
+            return Math.hypot(o1.x - o2.x, o1.y - o2.y);
+        }
+
+        // 更新邏輯
+        function update() {
+            if (gameOver || !gameStarted) return;
+
+            // 移動
+            let vx = 0, vy = 0;
+            if (keys['w'] || keys['箭頭上']) vy -= player.speed;
+            if (keys['s'] || keys['箭頭下']) vy += player.speed;
+            if (keys['a'] || keys['箭頭左']) vx -= player.speed;
+            if (keys['d'] || keys['箭頭右']) vx += player.speed;
+
+            if (hasTarget) {
+                let dx = targetX - player.x, dy = targetY - player.y;
+                let dist = Math.hypot(dx, dy);
+                if (dist > 20) {
+                    vx += (dx / dist) * player.speed * 0.7;
+                    vy += (dy / dist) * player.speed * 0.7;
+                } else {
+                    hasTarget = false;
+                }
+            }
+
+            let speed = Math.hypot(vx, vy);
+            if (speed > player.speed * 1.4) {
+                vx = (vx / speed) * player.speed * 1.4;
+                vy = (vy / speed) * player.speed * 1.4;
+            }
+
+            // 閃避
+            if (keys['shift'] && Date.now() - player.dodgeCD > DODGE_CD) {
+                player.dodgeTime = Date.now() + DODGE_TIME;
+                player.dodgeCD = Date.now();
+                player.vx = vx * 2.5;
+                player.vy = vy * 2.5;
+                createParticles(player.x, player.y, '#00FFFF', 25);
+                playSound(1400, 0.1);
+            }
+            if (Date.now() < player.dodgeTime) {
+                player.x += player.vx * 0.1;
+                player.y += player.vy * 0.1;
+            }
+
+            player.x += vx * 0.1;
+            player.y += vy * 0.1;
+            player.x = Math.max(player.size, Math.min(canvas.width - player.size, player.x));
+            player.y = Math.max(player.size, Math.min(canvas.height - player.size, player.y));
+
+            // 怪物 AI & 戰鬥
+            let aliveMonsters = monsters.filter(m => m.alive);
+            aliveMonsters.forEach(m => {
+                let dx = player.x - m.x, dy = player.y - m.y;
+                let dist = Math.hypot(dx, dy);
+                if (dist > 40) {
+                    m.x += (dx / dist) * m.speed;
+                    m.y += (dy / dist) * m.speed;
+                }
+                m.x = Math.max(m.size, Math.min(canvas.width - m.size, m.x));
+                m.y = Math.max(m.size, Math.min(canvas.height - m.size, m.y));
+
+                // 自動攻擊
+                if (dist < 45 && Date.now() - player.lastAttack > ATTACK_INTERVAL && Date.now() > player.dodgeTime) {
+                    m.hp -= (15 + player.level * 3) * player.dmgMod;
+                    player.lastAttack = Date.now();
+                    createParticles(m.x, m.y, '#4A90E2', 12);
+                    playSound(600, 0.08);
+                    if (m.hp <= 0) killMonster(m);
+                }
+                // 怪物攻擊
+                if (dist < 45 && Date.now() - m.lastAttack > 1200) {
+                    if (Date.now() > player.dodgeTime) player.hp -= 10;
+                    m.lastAttack = Date.now();
+                    createParticles(player.x, player.y, '#E74C3C', 8);
+                    playSound(300, 0.15);
+                }
+            });
+
+            // 技能效果 (職業調整)
+            skills.forEach((s, index) => {
+                if (s.active) {
+                    let mod = classConfig[playerClass]?.skillMods?.[index] || {};
+                    switch (s.name) {
+                        case 'dashSlash':
+                            let angle = Math.atan2(targetY - player.y, targetX - player.x);
+                            player.x += Math.cos(angle) * 100 * 0.05;
+                            player.y += Math.sin(angle) * 100 * 0.05;
+                            aliveMonsters.forEach(m => {
+                                if (distance(player, m) < (50 + mod.range * 20 || 50)) {
+                                    m.hp -= (30 + player.level * 5) * (mod.dmg || 1) * player.dmgMod;
+                                    createParticles(m.x, m.y, '#FFAA00');
+                                }
+                            });
+                            break;
+                        case 'spinSlash':
+                            aliveMonsters.forEach(m => {
+                                if (distance(player, m) < (player.aoeRange * (mod.range || 1))) {
+                                    m.hp -= (20 + player.level * 4) * (mod.dmg || 1) * player.dmgMod;
+                                    createParticles(m.x, m.y, '#FF6600', 18);
+                                }
+                            });
+                            break;
+                        case 'arrow':
+                            let projCount = mod.count || 1;
+                            for (let k = 0; k < projCount; k++) {
+                                let angle = Math.atan2(targetY - player.y, targetX - player.x) + (k - 0.5) * 0.3;
+                                projectiles.push({
+                                    x: player.x, y: player.y,
+                                    vx: Math.cos(angle) * (12 * (mod.speed || 1)),
+                                    vy: Math.sin(angle) * (12 * (mod.speed || 1)),
+                                    size: 4, color: '#FFD700'
+                                });
+                            }
+                            break;
+                    }
+                }
+            });
+
+            // 寵物 (遊俠專屬)
+            if (player.petActive && playerClass === 'ranger') {
+                // 簡化寵物邏輯: 跟隨並攻擊最近怪物
+                // (可擴充為獨立物件，此處粒子模擬)
+                let nearest = aliveMonsters.reduce((closest, m) => distance(player, m) < distance(player, closest || {}) ? m : closest, null);
+                if (nearest) {
+                    createParticles(nearest.x, nearest.y, '#00AAFF', 3, 2);
+                    nearest.hp -= 5 * player.dmgMod * 0.5;
+                    if (nearest.hp <= 0) killMonster(nearest);
+                }
+            }
+
+            if (player.hp <= 0) gameOver = true;
+            if (aliveMonsters.length < MAX_MONSTERS * 0.6) spawnMonster();
+        }
+
+        // 繪製
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 背景粒子
+            ctx.fillStyle = 'rgba(100, 150, 255, 0.03)';
+            for (let i = 0; i < 50; i++) {
+                ctx.beginPath();
+                ctx.arc(Math.random() * canvas.width, Math.random() * canvas.height, 1, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            updateParticles();
+            updateProjectiles();
+
+            // 玩家
+            ctx.save();
+            ctx.translate(player.x, player.y);
+            let playerGlow = Date.now() < player.dodgeTime ? Math.sin(Date.now() * 0.02) * 15 : 0;
+            ctx.shadowBlur = 30 + playerGlow;
+            ctx.shadowColor = Date.now() < player.dodgeTime ? '#00FFFF' : '#4A90E2';
+            ctx.fillStyle = playerClass === 'warrior' ? '#FF6B35' : playerClass === 'mage' ? '#9B59B6' : '#27AE60';
+            ctx.beginPath();
+            ctx.arc(0, 0, player.size, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            // HP 條
+            let barWidth = Math.min(70, canvas.width * 0.09), barHeight = 14;
+            let hpRatio = player.hp / player.maxHp;
+            ctx.fillStyle = 'rgba(0,0,0,0.8)';
+            ctx.fillRect(player.x - barWidth / 2, player.y - player.size - 25, barWidth, barHeight);
+            ctx.fillStyle = hpRatio > 0.6 ? '#4CAF50' : hpRatio > 0.3 ? '#FF9800' : '#F44336';
+            ctx.fillRect(player.x - barWidth / 2, player.y - player.size - 25, barWidth * Math.max(0, hpRatio), barHeight);
+
+            // 怪物
+            monsters.filter(m => m.alive).forEach(m => {
+                ctx.save();
+                ctx.translate(m.x, m.y);
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = '#E74C3C';
+                ctx.fillStyle = '#E74C3C';
+                ctx.beginPath();
+                ctx.arc(0, 0, m.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+
+                let mHpRatio = m.hp / m.maxHp;
+                ctx.fillStyle = 'rgba(0,0,0,0.8)';
+                ctx.fillRect(m.x - barWidth / 2 * 0.9, m.y - m.size - 22, barWidth * 0.9, barHeight * 0.8);
+                ctx.fillStyle = mHpRatio > 0.6 ? '#4CAF50' : mHpRatio > 0.3 ? '#FF9800' : '#F44336';
+                ctx.fillRect(m.x - barWidth / 2 * 0.9, m.y - m.size - 22, barWidth * 0.9 * Math.max(0, mHpRatio), barHeight * 0.8);
+            });
+
+            // 遊戲結束
+            if (gameOver) {
+                ctx.fillStyle = 'rgba(0,0,0,0.9)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#FFD700';
+                ctx.font = `bold ${Math.min(72, canvas.width * 0.09)}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.fillText('遊戲結束！', canvas.width / 2, canvas.height / 2);
+                ctx.font = `${Math.min(36, canvas.width * 0.06)}px Arial`;
+                ctx.fillText('按 R 重啟', canvas.width / 2, canvas.height / 2 + 50);
+            }
+        }
+
+        // 主循環
+        function gameLoop() {
+            update();
+            draw();
+            updateUI();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // 重置
+        function resetGame() {
+            player.hp = player.maxHp;
+            player.level = 1;
+            player.exp = 0;
+            player.nextExp = 100;
+            player.gold = 0;
+            player.speed = classConfig[playerClass]?.speed || 5;
+            monsters = [];
+            particles = [];
+            projectiles = [];
+            gameOver = false;
+            initPlayer();
+            for (let i = 0; i < 3; i++) spawnMonster();
+        }
+
+        // 啟動
+        document.getElementById('classSelect').style.display = 'flex';
+        gameLoop();
+    </script>
+</body>
+</html>
