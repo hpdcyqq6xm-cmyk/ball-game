@@ -1,761 +1,291 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-Hans">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-    <title>MMORPG 原型 - 手機觸控版</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        html, body { height: 100%; }
-        body { 
-            background: linear-gradient(135deg, #0a0a0a, #1a1a2e);
-            color: #fff;
-            font-family: 'Arial Black', Arial, sans-serif;
-            overflow: hidden;
-            touch-action: none;
-            user-select: none;
-            -webkit-user-select: none;
-        }
-        canvas {
-            display:block;
-            width:100vw;
-            height:100vh;
-            background: radial-gradient(circle at center, #2a2a4a 0%, #111 70%);
-            cursor: none; /* hide mouse cursor; mobile-friendly */
-        }
-        #ui {
-            position: fixed; top: 12px; left: 12px;
-            background: rgba(0,0,0,0.75);
-            padding: 12px 16px;
-            border-radius: 12px;
-            font-size: clamp(12px, 3.5vw, 16px);
-            backdrop-filter: blur(6px);
-            z-index: 60;
-            box-shadow: 0 0 18px rgba(0,255,255,0.14);
-        }
-        #bottomUI {
-            position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
-            background: rgba(0,0,0,0.75); padding: 10px 14px; border-radius: 16px;
-            display:flex; gap:12px; align-items:center; z-index:60;
-        }
-        .skill-btn {
-            width: 64px; height:64px; border-radius: 50%;
-            display:flex; align-items:center; justify-content:center;
-            font-size:28px; background: linear-gradient(45deg,#4A90E2,#357ABD);
-            color:#fff; border:2px solid rgba(255,255,255,0.08);
-            box-shadow: 0 6px 18px rgba(0,0,0,0.5);
-            touch-action: none;
-        }
-        .skill-btn.cd { opacity:0.5; }
-        .cd-bar { position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); width:76%; height:6px; background: rgba(255,255,255,0.12); border-radius: 4px; overflow:hidden; }
-        .cd-fill { height:100%; width:0%; background: linear-gradient(90deg,#ff0000,#ffff00); transition: width 0.08s linear; }
-        #controls { position: fixed; bottom: 16px; right: 16px; background: rgba(0,0,0,0.6); padding:10px; border-radius:12px; font-size:12px; z-index:60; color:#ccc; }
-        #shopBtn { position: fixed; top: 50%; right: 14px; transform: translateY(-50%); width:50px; height:50px; border-radius:50%; background:#FFD700; color:#000; border:none; font-size:20px; z-index:60; box-shadow:0 0 20px #FFD700; touch-action:none; }
-        #shopModal, #classSelect, #inventory { display:none; position:fixed; inset:0; background: rgba(0,0,0,0.9); z-index:80; align-items:center; justify-content:center; }
-        #shopContent, #classContent, #invContent { background:#222; padding:24px; border-radius:16px; text-align:center; max-width:92%; width:360px; }
-        .item-btn, .class-btn { margin:10px; padding:12px 18px; background:#4CAF50; color:#fff; border:none; border-radius:10px; font-size:16px; touch-action:none; }
-        .class-btn { background: linear-gradient(45deg,#4A90E2,#357ABD); }
-        #invList { max-height:300px; overflow:auto; text-align:left; margin-top:8px; }
-        .equip-btn { width:100%; margin:6px 0; padding:10px; border-radius:8px; background:#FFD700; color:#000; border:none; }
-        /* joystick */
-        #joystickContainer { position: fixed; left: 14px; bottom: 18px; width: 140px; height:140px; border-radius:50%; z-index:70; touch-action:none; display:flex; align-items:center; justify-content:center; }
-        #joystickBg { width: 120px; height:120px; background: rgba(255,255,255,0.03); border-radius:50%; display:block; position:relative; }
-        #joystickKnob { width:54px; height:54px; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); border-radius:50%; background: rgba(255,255,255,0.06); display:flex; align-items:center; justify-content:center; font-size:18px; touch-action:none; }
-        /* ensure large clickable areas on mobile */
-        .big-touch { padding:12px 18px; border-radius:12px; }
-        @media (pointer: coarse) {
-            .skill-btn { width:72px; height:72px; font-size:32px; }
-            #joystickContainer { width:160px; height:160px; }
-            #joystickBg { width:140px; height:140px; }
-            #joystickKnob { width:64px; height:64px; }
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>手機版 RPG 遊戲</title>
+<style>
+body {
+    margin: 0;
+    overflow: hidden;
+    background: #222;
+    touch-action: none;
+}
+
+/* --- Canvas --- */
+#gameCanvas {
+    display: block;
+    background: #333;
+    margin: auto;
+}
+
+/* --- UI 按鈕 --- */
+.ui-btn {
+    position: absolute;
+    padding: 10px 18px;
+    background: rgba(0,0,0,0.6);
+    color: white;
+    border: 2px solid #fff;
+    border-radius: 10px;
+    font-size: 20px;
+    user-select: none;
+}
+
+/* 放在上方 */
+#shopBtn { top: 10px; left: 10px; }
+#bagBtn { top: 10px; right: 10px; }
+
+/* 技能按鈕（桌機/手機共用） */
+.skill-btn {
+    position: absolute;
+    bottom: 20px;
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    border: 3px solid white;
+    background: rgba(200,0,0,0.6);
+    user-select: none;
+}
+#skill1Btn { right: 110px; }
+#skill2Btn { right: 20px; }
+
+/* 大招按鈕（手機限定） */
+#ultimateBtn {
+    position: absolute;
+    bottom: 120px;
+    right: 20px;
+    width: 90px;
+    height: 90px;
+    background: rgba(255,180,0,0.7);
+    border-radius: 50%;
+    border: 4px solid #fff;
+    display: none;
+}
+
+/* 藥水按鈕（手機） */
+#potionBtn {
+    position: absolute;
+    bottom: 220px;
+    right: 25px;
+    width: 65px;
+    height: 65px;
+    background: rgba(0,180,255,0.7);
+    border-radius: 15px;
+    border: 3px solid #fff;
+    display: none;
+}
+
+/* 搖桿（手機） */
+#joystick {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.12);
+    display: none;
+}
+#knob {
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    top: 40px;
+    left: 40px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.6);
+}
+</style>
 </head>
+
 <body>
-    <canvas id="canvas"></canvas>
 
-    <div id="ui">
-        <div>職業: <span id="playerClass">未選擇</span></div>
-        <div>等級: <span id="playerLevel">1</span> | EXP: <span id="exp">0</span>/<span id="nextExp">100</span></div>
-        <div>HP: <span id="playerHp">100</span>/<span id="playerMaxHp">100</span> | 金幣: <span id="gold">0</span></div>
-        <div>怪物: <span id="monsterCount">0</span></div>
-    </div>
+<canvas id="gameCanvas" width="900" height="600"></canvas>
 
-    <div id="joystickContainer" aria-hidden="true">
-        <div id="joystickBg"><div id="joystickKnob">●</div></div>
-    </div>
+<!-- 上方 UI -->
+<div id="shopBtn" class="ui-btn">商店</div>
+<div id="bagBtn" class="ui-btn">背包</div>
 
-    <div id="bottomUI" aria-hidden="false">
-        <div class="skill-btn" id="skill1" title="Q:衝刺斬">⚔️
-            <div class="cd-bar"><div class="cd-fill" id="cd1"></div></div>
-        </div>
-        <div class="skill-btn" id="skill2" title="E:旋轉斬">🌀
-            <div class="cd-bar"><div class="cd-fill" id="cd2"></div></div>
-        </div>
-        <div class="skill-btn" id="skill3" title="R:遠程箭">🏹
-            <div class="cd-bar"><div class="cd-fill" id="cd3"></div></div>
-        </div>
-    </div>
+<!-- 技能按鈕 -->
+<div id="skill1Btn" class="skill-btn"></div>
+<div id="skill2Btn" class="skill-btn"></div>
 
-    <div id="controls">虛擬搖桿移動 • 技能按鈕施放 • 點擊地面快速移動</div>
-    <button id="shopBtn" title="商店">🛒</button>
+<!-- 手機追加按鈕 -->
+<div id="ultimateBtn"></div>
+<div id="potionBtn"></div>
 
-    <div id="shopModal">
-        <div id="shopContent">
-            <h2>商店</h2>
-            <p>金幣: <span id="shopGold">0</span></p>
-            <button class="item-btn big-touch" onclick="buyPotion()">HP藥水 x5 (50金)</button>
-            <button class="item-btn big-touch" onclick="buySpeed()">速度+1 (200金)</button>
-            <button class="item-btn big-touch" onclick="closeShop()">關閉</button>
-        </div>
-    </div>
+<!-- 虛擬搖桿 -->
+<div id="joystick">
+    <div id="knob"></div>
+</div>
 
-    <div id="classSelect">
-        <div id="classContent">
-            <h2>選擇職業</h2>
-            <p>決定你的遊玩風格</p>
-            <button class="class-btn big-touch" onclick="selectClass('warrior')">⚔️ 戰士<br>高傷近戰</button>
-            <button class="class-btn big-touch" onclick="selectClass('mage')">🔮 法師<br>AoE 遠程</button>
-            <button class="class-btn big-touch" onclick="selectClass('ranger')">🏹 遊俠<br>寵物輔助</button>
-        </div>
-    </div>
+<script>
+/* ========================================
+    遊戲變數（原版 + 重構）
+======================================== */
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
 
-    <div id="inventory">
-        <div id="invContent">
-            <h2>背包</h2>
-            <div id="invList"></div>
-            <button class="item-btn big-touch" onclick="closeInv()">關閉</button>
-        </div>
-    </div>
+let gameState = "playing";
 
-    <script>
-    // ---------- 基本設定 ----------
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
-    const dpr = Math.max(1, window.devicePixelRatio || 1);
+let player = {
+    x: 450, y: 300,
+    size: 30,
+    hp: 100,
+    maxHp: 100,
+    speed: 220,
+    gold: 0
+};
 
-    function resizeCanvas() {
-        canvas.style.width = window.innerWidth + 'px';
-        canvas.style.height = window.innerHeight + 'px';
-        canvas.width = Math.floor(window.innerWidth * dpr);
-        canvas.height = Math.floor(window.innerHeight * dpr);
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // scale drawing to CSS pixels
-    }
-    window.addEventListener('resize', resizeCanvas);
-    resizeCanvas();
+let enemies = [];
 
-    const elements = {
-        playerClassEl: document.getElementById('playerClass'),
-        playerLevel: document.getElementById('playerLevel'),
-        exp: document.getElementById('exp'),
-        nextExp: document.getElementById('nextExp'),
-        playerHp: document.getElementById('playerHp'),
-        playerMaxHp: document.getElementById('playerMaxHp'),
-        gold: document.getElementById('gold'),
-        monsterCount: document.getElementById('monsterCount'),
-        shopGold: document.getElementById('shopGold'),
-        skill1: document.getElementById('skill1'),
-        skill2: document.getElementById('skill2'),
-        skill3: document.getElementById('skill3'),
-        cd1: document.getElementById('cd1'),
-        cd2: document.getElementById('cd2'),
-        cd3: document.getElementById('cd3'),
-        invList: document.getElementById('invList')
-    };
-
-    // Audio
-    let audioCtx = null;
-    function ensureAudio() {
-        if (!audioCtx) {
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        }
-    }
-    function playSound(freq, duration, type = 'sine') {
-        try {
-            ensureAudio();
-            let oscillator = audioCtx.createOscillator();
-            let gainNode = audioCtx.createGain();
-            oscillator.connect(gainNode);
-            gainNode.connect(audioCtx.destination);
-            oscillator.frequency.value = freq;
-            oscillator.type = type;
-            gainNode.gain.setValueAtTime(0.25, audioCtx.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
-            oscillator.start(audioCtx.currentTime);
-            oscillator.stop(audioCtx.currentTime + duration);
-        } catch (e) { /* mobile auto-play restrictions might block audio until user gesture */ }
-    }
-
-    // ---------- 遊戲狀態 ----------
-    let playerClass = null;
-    let player = {
-        x: 0, y: 0, hp: 100, maxHp: 100, level: 1, exp: 0, nextExp: 100, gold: 0,
-        speed: 5, size: 25, vx: 0, vy: 0, lastAttack: 0, dodgeTime: 0, dodgeCD: 0,
-        dmgMod: 1, aoeRange: 60, petActive: false
-    };
-    let inventory = [];
-    let equipped = { hpBonus: 0, dmgBonus: 0 };
-    let monsters = [];
-    let particles = [];
-    let projectiles = [];
-    let targetX = 0, targetY = 0, hasTarget = false;
-    let keys = {}, gameOver = false, gameStarted = false;
-    const MAX_MONSTERS = 5;
-    const ATTACK_INTERVAL = 800;
-    const DODGE_CD = 3000, DODGE_TIME = 800;
-
-    const skills = [
-        { name: 'dashSlash', key: 'q', cd: 2000, active: false, cdTime: 0 },
-        { name: 'spinSlash', key: 'e', cd: 3000, active: false, cdTime: 0 },
-        { name: 'arrow', key: 'r', cd: 2500, active: false, cdTime: 0 }
-    ];
-
-    const classConfig = {
-        warrior: { speed: 4.8, dmgMod: 1.5, aoeRange: 50, petActive: false, skillMods: {0: {cd:1500}, 1: {dmg:1.3}} },
-        mage:    { speed: 5.5, dmgMod: 1.2, aoeRange: 90, petActive: false, skillMods: {1: {range:1.5, dmg:1.4}, 2: {dmg:1.5}} },
-        ranger:  { speed: 5.2, dmgMod: 1.3, aoeRange: 70, petActive: true,  skillMods: {2: {speed:1.5, count:2}} }
-    };
-
-    // ---------- 初始與重置 ----------
-    function initPlayer() {
-        player.x = canvas.width / (2 * dpr);
-        player.y = canvas.height / (2 * dpr);
-        targetX = player.x; targetY = player.y; hasTarget = false;
-    }
-
-    function resetGame() {
-        player.hp = player.maxHp;
-        player.level = 1;
-        player.exp = 0;
-        player.nextExp = 100;
-        player.gold = 0;
-        player.speed = classConfig[playerClass]?.speed || 5;
-        monsters = [];
-        particles = [];
-        projectiles = [];
-        gameOver = false;
-        initPlayer();
-        for (let i = 0; i < 3; i++) spawnMonster();
-    }
-
-    // ---------- 怪物 / 粒子 / 投射物 ----------
-    function spawnMonster() {
-        if (!gameStarted) return;
-        if (monsters.length < MAX_MONSTERS) {
-            monsters.push({
-                x: Math.random() * (canvas.width/dpr - 100) + 50,
-                y: Math.random() * (canvas.height/dpr - 100) + 50,
-                hp: 40 + player.level * 10, maxHp: 40 + player.level * 10,
-                speed: 1.8 + player.level * 0.2, size: 20, lastAttack: 0, alive: true,
-                goldDrop: 10 + Math.floor(Math.random() * 20)
-            });
-        }
-    }
-
-    function createParticles(x, y, color, count = 15, speed = 5, life = 40) {
-        for (let i = 0; i < count; i++) {
-            particles.push({
-                x, y, vx: (Math.random() - 0.5) * speed, vy: (Math.random() - 0.5) * speed,
-                life, maxLife: life, color, size: Math.random() * 4 + 2
-            });
-        }
-    }
-
-    function updateParticles() {
-        for (let i = particles.length - 1; i >= 0; i--) {
-            let p = particles[i];
-            p.x += p.vx; p.y += p.vy;
-            p.life--;
-            p.size *= 0.98;
-            if (p.life <= 0) { particles.splice(i,1); continue; }
-            ctx.save();
-            ctx.globalAlpha = Math.max(0, p.life / p.maxLife);
-            ctx.fillStyle = p.color;
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
-            ctx.fill();
-            ctx.restore();
-        }
-    }
-
-    function updateProjectiles() {
-        for (let i = projectiles.length - 1; i >= 0; i--) {
-            let proj = projectiles[i];
-            proj.x += proj.vx; proj.y += proj.vy;
-            if (proj.x < -50 || proj.x > canvas.width/dpr + 50 || proj.y < -50 || proj.y > canvas.height/dpr + 50) {
-                projectiles.splice(i,1); continue;
-            }
-            ctx.save();
-            ctx.translate(proj.x, proj.y);
-            ctx.fillStyle = proj.color;
-            ctx.shadowBlur = 10;
-            ctx.shadowColor = proj.color;
-            ctx.beginPath();
-            ctx.arc(0,0,proj.size,0,Math.PI*2);
-            ctx.fill();
-            ctx.restore();
-
-            for (let j = monsters.length - 1; j >= 0; j--) {
-                let m = monsters[j];
-                if (m.alive && Math.hypot(m.x - proj.x, m.y - proj.y) < 30) {
-                    m.hp -= (25 + player.level * 3) * player.dmgMod;
-                    createParticles(m.x, m.y, '#FFD700', 20);
-                    playSound(800, 0.12);
-                    projectiles.splice(i,1);
-                    if (m.hp <= 0) killMonster(m);
-                    break;
-                }
-            }
-        }
-    }
-
-    // ---------- 戰鬥 / 掉落 / 升級 ----------
-    function killMonster(m) {
-        player.exp += 20 + player.level * 5;
-        player.gold += m.goldDrop;
-        createParticles(m.x, m.y, '#FF4444', 30, 8);
-        playSound(200, 0.18, 'square');
-        dropLoot();
-        if (player.exp >= player.nextExp) levelUp();
-        m.alive = false;
-        setTimeout(() => {
-            let idx = monsters.indexOf(m);
-            if (idx > -1) monsters.splice(idx,1);
-        }, 800);
-    }
-
-    function dropLoot() {
-        if (Math.random() < 0.2) {
-            let names = playerClass === 'warrior' ? ['鐵劍','戰斧'] : playerClass === 'mage' ? ['法杖','魔晶'] : ['獵弓','箭袋'];
-            let loot = {
-                name: names[Math.floor(Math.random() * names.length)],
-                rarity: Math.random() > 0.6 ? '紫' : Math.random() > 0.3 ? '藍' : '綠',
-                hp: 15 + Math.random() * 35,
-                dmg: 4 + Math.random() * 12
-            };
-            inventory.push(loot);
-            createParticles(player.x, player.y, '#FFD700', 10);
-            playSound(1000, 0.12);
-        }
-    }
-
-    function levelUp() {
-        player.level++;
-        player.exp = 0;
-        player.nextExp = Math.floor(player.nextExp * 1.5);
-        player.maxHp += 30 + equipped.hpBonus * 0.1;
-        player.hp = player.maxHp;
-        player.speed += 0.3;
-        createParticles(player.x, player.y, '#00FF88', 50, 10);
-        playSound(1200, 0.28);
-    }
-
-    // ---------- 技能系統（職業化） ----------
-    function useSkill(index) {
-        let skill = skills[index];
-        if (Date.now() - skill.cdTime < skill.cd) return;
-        let config = classConfig[playerClass]?.skillMods?.[index] || {};
-        skill.cdTime = Date.now();
-        skill.active = true;
-        playSound(900 + index*200, 0.12);
-        updateSkillUI();
-        setTimeout(() => { skill.active = false; }, 300);
-    }
-
-    function updateSkillUI() {
-        skills.forEach((s, i) => {
-            let btn = elements[`skill${i+1}`];
-            let cd = elements[`cd${i+1}`];
-            let progress = Math.max(0, 1 - (Date.now() - s.cdTime) / s.cd);
-            btn.classList.toggle('cd', progress > 0 && !s.active);
-            cd.style.width = `${progress * 100}%`;
-        });
-    }
-
-    // ---------- 商店 / 背包 ----------
-    function toggleShop() {
-        let modal = document.getElementById('shopModal');
-        elements.shopGold.textContent = player.gold;
-        modal.style.display = modal.style.display === 'flex' ? 'none' : 'flex';
-    }
-    function buyPotion() {
-        if (player.gold >= 50) {
-            player.gold -= 50;
-            player.hp = Math.min(player.maxHp, player.hp + 100);
-            playSound(900, 0.18);
-            elements.shopGold.textContent = player.gold;
-        }
-    }
-    function buySpeed() {
-        if (player.gold >= 200) {
-            player.gold -= 200;
-            player.speed += 1;
-            playSound(1100, 0.18);
-            elements.shopGold.textContent = player.gold;
-        }
-    }
-    function closeShop() { document.getElementById('shopModal').style.display = 'none'; }
-
-    function toggleInv() {
-        elements.invList.innerHTML = inventory.map((item, i) =>
-            `<button class="equip-btn" onclick="equipItem(${i})">${item.name} [${item.rarity}] +${Math.floor(item.hp)}HP +${Math.floor(item.dmg)}傷</button>`
-        ).join('') || '<div style="color:#ccc;padding:6px">背包空</div>';
-        document.getElementById('inventory').style.display = 'flex';
-    }
-    function equipItem(i) {
-        let item = inventory.splice(i,1)[0];
-        equipped.hpBonus += item.hp;
-        equipped.dmgBonus += item.dmg;
-        player.maxHp += item.hp;
-        player.hp += item.hp;
-        player.dmgMod += item.dmg / 100;
-        playSound(950, 0.2);
-        toggleInv();
-    }
-    function closeInv() { document.getElementById('inventory').style.display = 'none'; }
-
-    // ---------- 輔助函數 ----------
-    function distance(o1, o2) { if(!o1||!o2) return Infinity; return Math.hypot(o1.x - o2.x, o1.y - o2.y); }
-
-    // ---------- 事件綁定（鍵盤 & pointer） ----------
-    window.addEventListener('keydown', (e) => {
-        let key = e.key.toLowerCase();
-        keys[key] = true;
-        if (key === 'r' && gameOver) resetGame();
-        if (key === 's') toggleShop();
-        if (key === 'i') toggleInv();
-        skills.forEach((s, i) => { if (key === s.key) useSkill(i); });
+function spawnEnemy() {
+    enemies.push({
+        x: Math.random()*canvas.width,
+        y: Math.random()*canvas.height,
+        size: 25,
+        hp: 40
     });
-    window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
+}
 
-    // pointer 點擊移動（點擊地面快速移動）
-    canvas.addEventListener('pointerdown', (e) => {
-        // 如果搖桿或 UI 捕獲則 skip（搖桿會使用 pointer capture）
-        const rect = canvas.getBoundingClientRect();
-        const px = (e.clientX - rect.left) * (canvas.width/rect.width) / dpr;
-        const py = (e.clientY - rect.top)  * (canvas.height/rect.height) / dpr;
-        // 點到下方技能按鈕或 joystick 的話不要改變點移動目標
-        // 我們假設 UI 區域在頁面上方/底部，若 pointer target 是 canvas 才啟動移動
-        if (e.target === canvas) {
-            targetX = px; targetY = py; hasTarget = true;
-        }
-    }, { passive: true });
+for(let i=0;i<4;i++) spawnEnemy();
 
-    // 技能按鈕 touch 支援（避免 click delay）
-    ['skill1','skill2','skill3'].forEach((id, idx) => {
-        const el = document.getElementById(id);
-        function onActivate(ev) {
-            ev.preventDefault();
-            useSkill(idx);
-            // small visual feedback
-            el.animate([{ transform: 'scale(1)' }, { transform: 'scale(0.92)' }, { transform: 'scale(1)' }], { duration: 120 });
-        }
-        el.addEventListener('pointerdown', onActivate);
-        el.addEventListener('touchstart', onActivate, { passive:false });
-    });
+/* ========================================
+    核心通用函式
+======================================== */
+function update(dt){
+    // 移動：手指優先
+    if (joy.active) {
+        player.x += joy.dx * player.speed * dt;
+        player.y += joy.dy * player.speed * dt;
+    }
 
-    // UI buttons
-    document.getElementById('shopBtn').addEventListener('pointerdown', (e) => { e.preventDefault(); toggleShop(); }, { passive:false });
-
-    // class select (already uses onclick handlers)
-
-    // ---------- 虛擬搖桿（支持多指） ----------
-    const joystickContainer = document.getElementById('joystickContainer');
-    const joystickKnob = document.getElementById('joystickKnob');
-    const joystickBg = document.getElementById('joystickBg');
-    let joyActive = false, joyId = null, joyStart = {x:0,y:0}, joyPos = {x:0,y:0};
-    const JOY_MAX = 44; // knob radius limit in CSS pixels
-
-    joystickBg.addEventListener('pointerdown', (e) => {
-        e.preventDefault();
-        joystickBg.setPointerCapture(e.pointerId);
-        joyActive = true; joyId = e.pointerId;
-        const rect = joystickBg.getBoundingClientRect();
-        joyStart = { x: rect.left + rect.width/2, y: rect.top + rect.height/2 };
-        updateJoystick(e.clientX, e.clientY);
-    }, { passive: false });
-
-    joystickBg.addEventListener('pointermove', (e) => {
-        if (!joyActive || e.pointerId !== joyId) return;
-        updateJoystick(e.clientX, e.clientY);
-    }, { passive: true });
-
-    joystickBg.addEventListener('pointerup', (e) => {
-        if (e.pointerId !== joyId) return;
-        joyActive = false; joyId = null;
-        joystickKnob.style.transform = 'translate(-50%,-50%)';
-        joyPos = { x:0, y:0 };
-    });
-    joystickBg.addEventListener('pointercancel', (e) => {
-        joyActive = false; joyId = null;
-        joystickKnob.style.transform = 'translate(-50%,-50%)';
-        joyPos = { x:0, y:0 };
-    });
-
-    function updateJoystick(clientX, clientY) {
-        const dx = clientX - joyStart.x;
-        const dy = clientY - joyStart.y;
+    // 簡單 AI
+    enemies.forEach(e=>{
+        const dx = player.x - e.x;
+        const dy = player.y - e.y;
         const dist = Math.hypot(dx,dy);
-        const angle = Math.atan2(dy,dx);
-        const limited = Math.min(JOY_MAX, dist);
-        const knobX = Math.cos(angle) * limited;
-        const knobY = Math.sin(angle) * limited;
-        joystickKnob.style.transform = `translate(calc(-50% + ${knobX}px), calc(-50% + ${knobY}px))`;
-        joyPos = { x: knobX / JOY_MAX, y: knobY / JOY_MAX }; // -1..1
-    }
-
-    // ---------- 更新邏輯 ----------
-    function update() {
-        if (gameOver || !gameStarted) return;
-
-        // joystick control has priority for movement
-        let vx = 0, vy = 0;
-        if (joyPos.x !== 0 || joyPos.y !== 0) {
-            vx += joyPos.x * player.speed;
-            vy += joyPos.y * player.speed;
-        } else {
-            if (keys['w'] || keys['arrowup']) vy -= player.speed;
-            if (keys['s'] || keys['arrowdown']) vy += player.speed;
-            if (keys['a'] || keys['arrowleft']) vx -= player.speed;
-            if (keys['d'] || keys['arrowright']) vx += player.speed;
-            if (hasTarget) {
-                let dx = targetX - player.x, dy = targetY - player.y;
-                let dist = Math.hypot(dx, dy);
-                if (dist > 20) {
-                    vx += (dx / dist) * player.speed * 0.7;
-                    vy += (dy / dist) * player.speed * 0.7;
-                } else {
-                    hasTarget = false;
-                }
-            }
+        if(dist>1){
+            e.x += dx/dist * 50 * dt;
+            e.y += dy/dist * 50 * dt;
         }
+    });
+}
 
-        let speed = Math.hypot(vx, vy);
-        if (speed > player.speed * 1.4) {
-            vx = (vx / speed) * player.speed * 1.4;
-            vy = (vy / speed) * player.speed * 1.4;
-        }
+function draw(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
 
-        // dodge (Shift or double-tap? keep Shift for desktop)
-        if ((keys['shift'] || false) && Date.now() - player.dodgeCD > DODGE_CD) {
-            player.dodgeTime = Date.now() + DODGE_TIME;
-            player.dodgeCD = Date.now();
-            player.vx = vx * 2.5;
-            player.vy = vy * 2.5;
-            createParticles(player.x, player.y, '#00FFFF', 25);
-            playSound(1400, 0.1);
-        }
-        if (Date.now() < player.dodgeTime) {
-            player.x += player.vx * 0.1;
-            player.y += player.vy * 0.1;
-        }
+    // 玩家
+    ctx.fillStyle="cyan";
+    ctx.beginPath();
+    ctx.arc(player.x,player.y,player.size,0,Math.PI*2);
+    ctx.fill();
 
-        player.x += vx * 0.1;
-        player.y += vy * 0.1;
-        player.x = Math.max(player.size, Math.min(canvas.width/dpr - player.size, player.x));
-        player.y = Math.max(player.size, Math.min(canvas.height/dpr - player.size, player.y));
-
-        // monsters AI & combat
-        let aliveMonsters = monsters.filter(m => m.alive);
-        aliveMonsters.forEach(m => {
-            let dx = player.x - m.x, dy = player.y - m.y;
-            let dist = Math.hypot(dx, dy);
-            if (dist > 40) {
-                m.x += (dx / dist) * m.speed;
-                m.y += (dy / dist) * m.speed;
-            }
-            m.x = Math.max(m.size, Math.min(canvas.width/dpr - m.size, m.x));
-            m.y = Math.max(m.size, Math.min(canvas.height/dpr - m.size, m.y));
-
-            if (dist < 45 && Date.now() - player.lastAttack > ATTACK_INTERVAL && Date.now() > player.dodgeTime) {
-                m.hp -= (15 + player.level * 3) * player.dmgMod;
-                player.lastAttack = Date.now();
-                createParticles(m.x, m.y, '#4A90E2', 12);
-                playSound(600, 0.08);
-                if (m.hp <= 0) killMonster(m);
-            }
-            if (dist < 45 && Date.now() - m.lastAttack > 1200) {
-                if (Date.now() > player.dodgeTime) player.hp -= 10;
-                m.lastAttack = Date.now();
-                createParticles(player.x, player.y, '#E74C3C', 8);
-                playSound(300, 0.12);
-            }
-        });
-
-        // skills effects
-        skills.forEach((s, index) => {
-            if (s.active) {
-                let mod = classConfig[playerClass]?.skillMods?.[index] || {};
-                switch (s.name) {
-                    case 'dashSlash':
-                        let angle = Math.atan2(targetY - player.y, targetX - player.x);
-                        player.x += Math.cos(angle) * 100 * 0.05;
-                        player.y += Math.sin(angle) * 100 * 0.05;
-                        aliveMonsters.forEach(m => {
-                            if (distance(player, m) < (50 + (mod.range || 0) * 20)) {
-                                m.hp -= (30 + player.level * 5) * (mod.dmg || 1) * player.dmgMod;
-                                createParticles(m.x, m.y, '#FFAA00');
-                            }
-                        });
-                        break;
-                    case 'spinSlash':
-                        aliveMonsters.forEach(m => {
-                            if (distance(player, m) < (player.aoeRange * (mod.range || 1))) {
-                                m.hp -= (20 + player.level * 4) * (mod.dmg || 1) * player.dmgMod;
-                                createParticles(m.x, m.y, '#FF6600', 18);
-                            }
-                        });
-                        break;
-                    case 'arrow':
-                        let projCount = mod.count || 1;
-                        for (let k = 0; k < projCount; k++) {
-                            let ang = Math.atan2(targetY - player.y, targetX - player.x) + (k - (projCount-1)/2) * 0.18;
-                            projectiles.push({
-                                x: player.x, y: player.y,
-                                vx: Math.cos(ang) * (12 * (mod.speed || 1)),
-                                vy: Math.sin(ang) * (12 * (mod.speed || 1)),
-                                size: 4, color: '#FFD700'
-                            });
-                        }
-                        break;
-                }
-            }
-        });
-
-        // pet for ranger
-        if (player.petActive && playerClass === 'ranger') {
-            let nearest = aliveMonsters.reduce((closest, m) => !closest || distance(player, m) < distance(player, closest) ? m : closest, null);
-            if (nearest) {
-                createParticles(nearest.x, nearest.y, '#00AAFF', 3, 2);
-                nearest.hp -= 5 * player.dmgMod * 0.5;
-                if (nearest.hp <= 0) killMonster(nearest);
-            }
-        }
-
-        if (player.hp <= 0) gameOver = true;
-        if (aliveMonsters.length < MAX_MONSTERS * 0.6) spawnMonster();
-    }
-
-    // ---------- 繪製 ----------
-    function draw() {
-        // clear using CSS sized canvas (we set transform earlier)
-        ctx.clearRect(0,0,canvas.width/dpr, canvas.height/dpr);
-
-        // subtle background stars
-        ctx.fillStyle = 'rgba(100,150,255,0.02)';
-        for (let i=0;i<40;i++){
-            ctx.beginPath();
-            ctx.arc(Math.random() * canvas.width/dpr, Math.random() * canvas.height/dpr, 0.7, 0, Math.PI*2);
-            ctx.fill();
-        }
-
-        updateParticles();
-        updateProjectiles();
-
-        // player
-        ctx.save();
-        ctx.translate(player.x, player.y);
-        let playerGlow = Date.now() < player.dodgeTime ? Math.sin(Date.now() * 0.02) * 15 : 0;
-        ctx.shadowBlur = 30 + playerGlow;
-        ctx.shadowColor = Date.now() < player.dodgeTime ? '#00FFFF' : '#4A90E2';
-        ctx.fillStyle = playerClass === 'warrior' ? '#FF6B35' : playerClass === 'mage' ? '#9B59B6' : '#27AE60';
+    // 怪物
+    ctx.fillStyle="red";
+    enemies.forEach(e=>{
         ctx.beginPath();
-        ctx.arc(0,0,player.size,0,Math.PI*2);
+        ctx.arc(e.x,e.y,e.size,0,Math.PI*2);
         ctx.fill();
-        ctx.restore();
+    });
 
-        // HP bar
-        let barWidth = Math.min(120, (canvas.width/dpr) * 0.12), barHeight = 14;
-        let hpRatio = player.hp / player.maxHp;
-        ctx.fillStyle = 'rgba(0,0,0,0.75)';
-        ctx.fillRect(player.x - barWidth/2, player.y - player.size - 28, barWidth, barHeight);
-        ctx.fillStyle = hpRatio > 0.6 ? '#4CAF50' : hpRatio > 0.3 ? '#FF9800' : '#F44336';
-        ctx.fillRect(player.x - barWidth/2, player.y - player.size - 28, barWidth * Math.max(0, hpRatio), barHeight);
+    // 血條
+    ctx.fillStyle="white";
+    ctx.fillText(`HP: ${player.hp}/${player.maxHp}`,10,20);
+    ctx.fillText(`Gold: ${player.gold}`,10,40);
+}
 
-        // monsters
-        monsters.filter(m => m.alive).forEach(m => {
-            ctx.save();
-            ctx.translate(m.x, m.y);
-            ctx.shadowBlur = 20;
-            ctx.shadowColor = '#E74C3C';
-            ctx.fillStyle = '#E74C3C';
-            ctx.beginPath();
-            ctx.arc(0,0,m.size,0,Math.PI*2);
-            ctx.fill();
-            ctx.restore();
+/* ========================================
+    主循環
+======================================== */
+let last = performance.now();
+function gameLoop(t){
+    const dt = (t-last)/1000;
+    last = t;
 
-            let mHpRatio = m.hp / m.maxHp;
-            ctx.fillStyle = 'rgba(0,0,0,0.75)';
-            ctx.fillRect(m.x - barWidth/2 * 0.9, m.y - m.size - 22, barWidth*0.9, barHeight*0.8);
-            ctx.fillStyle = mHpRatio > 0.6 ? '#4CAF50' : mHpRatio > 0.3 ? '#FF9800' : '#F44336';
-            ctx.fillRect(m.x - barWidth/2 * 0.9, m.y - m.size - 22, barWidth*0.9 * Math.max(0, mHpRatio), barHeight*0.8);
-        });
-
-        // game over overlay
-        if (gameOver) {
-            ctx.fillStyle = 'rgba(0,0,0,0.9)';
-            ctx.fillRect(0,0,canvas.width/dpr, canvas.height/dpr);
-            ctx.fillStyle = '#FFD700';
-            ctx.font = `bold ${Math.min(72, (canvas.width/dpr) * 0.09)}px Arial`;
-            ctx.textAlign = 'center';
-            ctx.fillText('遊戲結束！', canvas.width/dpr / 2, canvas.height/dpr / 2);
-            ctx.font = `${Math.min(36, (canvas.width/dpr) * 0.06)}px Arial`;
-            ctx.fillText('按 R 或重新選擇職業以重啟', canvas.width/dpr / 2, canvas.height/dpr / 2 + 50);
-        }
-    }
-
-    // ---------- 主循環 ----------
-    function updateUI() {
-        elements.playerLevel.textContent = player.level;
-        elements.exp.textContent = player.exp;
-        elements.nextExp.textContent = player.nextExp;
-        elements.playerHp.textContent = Math.floor(player.hp);
-        elements.playerMaxHp.textContent = Math.floor(player.maxHp);
-        elements.gold.textContent = player.gold;
-        elements.monsterCount.textContent = monsters.filter(m => m.alive).length;
-        elements.shopGold.textContent = player.gold;
-        updateSkillUI();
-    }
-
-    function gameLoop() {
-        update();
+    if(gameState==="playing"){
+        update(dt);
         draw();
-        updateUI();
         requestAnimationFrame(gameLoop);
     }
+}
+requestAnimationFrame(gameLoop);
 
-    // ---------- 選職 / 啟動 ----------
-    function selectClass(cls) {
-        playerClass = cls;
-        const config = classConfig[cls];
-        player.speed = config.speed;
-        player.dmgMod = config.dmgMod;
-        player.aoeRange = config.aoeRange;
-        player.petActive = config.petActive;
-        elements.playerClassEl.textContent = cls;
-        document.getElementById('classSelect').style.display = 'none';
-        resetGame();
-        gameStarted = true;
+/* ========================================
+    按鈕事件（手機 + 桌機）
+======================================== */
+function bind(id, fn){
+    const el = document.getElementById(id);
+    el.addEventListener("click", fn);
+    el.addEventListener("touchstart", e=>{
+        e.preventDefault();
+        fn();
+    });
+}
+
+bind("shopBtn", ()=>alert("打開商店（可接 UI）"));
+bind("bagBtn", ()=>alert("打開背包（可接 UI）"));
+bind("skill1Btn", ()=>alert("技能 1！"));
+bind("skill2Btn", ()=>alert("技能 2！"));
+bind("ultimateBtn", ()=>alert("大招！！！🔥"));
+bind("potionBtn", ()=>{
+    if(player.hp < player.maxHp){
+        player.hp = Math.min(player.hp+30, player.maxHp);
     }
+});
 
-    // 顯示 class 選單啟動遊戲
-    document.getElementById('classSelect').style.display = 'flex';
-    gameLoop();
+/* ========================================
+    虛擬搖桿（手機）
+======================================== */
+const joy = {
+    active:false,
+    dx:0, dy:0
+};
 
-    // ---------- 方便的外部呼叫（給 HTML 按鈕） ----------
-    window.toggleShop = toggleShop;
-    window.buyPotion = buyPotion;
-    window.buySpeed = buySpeed;
-    window.closeShop = closeShop;
-    window.toggleInv = toggleInv;
-    window.closeInv = closeInv;
-    window.selectClass = selectClass;
-    window.equipItem = equipItem;
-    window.resetGame = resetGame;
+const joystick = document.getElementById("joystick");
+const knob = document.getElementById("knob");
 
-    // ---------- 小提示： 启用声音前请先触发一次用户手势（点击屏幕） -----------
-    // (可選) 點擊任意處激活 audio context（部分手機需要）
-    canvas.addEventListener('pointerdown', () => { try { ensureAudio(); if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume(); } catch(e){} }, {passive:true});
-    </script>
+function isMobile(){
+    return /Android|iPhone|iPad/i.test(navigator.userAgent);
+}
+
+if(isMobile()){
+    joystick.style.display = "block";
+    document.getElementById("ultimateBtn").style.display="block";
+    document.getElementById("potionBtn").style.display="block";
+}
+
+// 觸控開始
+joystick.addEventListener("touchstart", e=>{
+    e.preventDefault();
+    joy.active = true;
+});
+
+// 移動
+joystick.addEventListener("touchmove", e=>{
+    e.preventDefault();
+    const rect = joystick.getBoundingClientRect();
+    const touch = e.touches[0];
+
+    const cx = touch.clientX - (rect.left+rect.width/2);
+    const cy = touch.clientY - (rect.top+rect.height/2);
+
+    const dist = Math.min(Math.hypot(cx,cy), 50);
+    const ang = Math.atan2(cy,cx);
+
+    joy.dx = Math.cos(ang)*(dist/50);
+    joy.dy = Math.sin(ang)*(dist/50);
+
+    knob.style.transform = `translate(${joy.dx*40}px, ${joy.dy*40}px)`;
+});
+
+// 放開
+joystick.addEventListener("touchend", e=>{
+    joy.active=false;
+    joy.dx=joy.dy=0;
+    knob.style.transform = "translate(0,0)";
+});
+</script>
+
 </body>
 </html>
