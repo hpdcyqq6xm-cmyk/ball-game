@@ -49,7 +49,7 @@ canvas{display:block;width:100vw;height:100vh;background:radial-gradient(circle 
 <div class="modalContent">
 <h2>商店</h2>
 <p>金幣: <span id="shopGold">0</span></p>
-<button class="item-btn" onclick="buyPotion()">HP藥水 x5 (50金)</button>
+<button class="item-btn" onclick="buyPotion()">HP藥水 x1 (50金)</button>
 <button class="item-btn" onclick="buySpeed()">速度+1 (200金)</button>
 <button class="item-btn" onclick="closeShop()">關閉</button>
 </div>
@@ -76,14 +76,14 @@ canvas{display:block;width:100vw;height:100vh;background:radial-gradient(circle 
 <div id="joystick"><div id="stick"></div></div>
 
 <script>
-// Canvas & ctx
+// Canvas
 const canvas=document.getElementById('canvas');
 const ctx=canvas.getContext('2d');
 function resizeCanvas(){canvas.width=window.innerWidth;canvas.height=window.innerHeight;}
 window.addEventListener('resize',resizeCanvas);
 resizeCanvas();
 
-// UI elements
+// UI
 const elements={
 playerClassEl: document.getElementById('playerClass'),
 playerLevel: document.getElementById('playerLevel'),
@@ -105,8 +105,8 @@ invList: document.getElementById('invList')
 
 // Player
 let playerClass=null;
-let player={x:0,y:0,hp:100,maxHp:100,level:1,exp:0,nextExp:100,gold:0,speed:5,size:25,vx:0,vy:0,dodgeTime:0,dodgeCD:0,dmgMod:1,aoeRange:60,petActive:false};
-let inventory=[],equipped={hpBonus:0,dmgBonus:0};
+let player={x:0,y:0,hp:100,maxHp:100,level:1,exp:0,nextExp:100,gold:0,speed:5,size:25};
+let inventory=[];
 let monsters=[];
 let keys={},gameStarted=false,gameOver=false;
 
@@ -117,21 +117,66 @@ mage:{speed:5.5,dmgMod:1.2,aoeRange:90,petActive:false},
 ranger:{speed:5.2,dmgMod:1.3,aoeRange:70,petActive:true}
 };
 
+// Skills
+let skillCooldowns = [0,0,0];
+const skillMaxCD = [5,8,10]; // 秒
+
+function useSkill(idx){
+    if(skillCooldowns[idx]<=0){
+        skillCooldowns[idx] = skillMaxCD[idx];
+        // 技能效果
+        if(idx===0){ // 劍擊: 近距傷害
+            monsters.forEach(m=>{
+                let dx=m.x-player.x,dy=m.y-player.y;
+                if(Math.hypot(dx,dy)<50){
+                    m.hp-=20*classConfig[playerClass].dmgMod;
+                }
+            });
+        } else if(idx===1){ // 法術: 範圍傷害
+            monsters.forEach(m=>{
+                let dx=m.x-player.x,dy=m.y-player.y;
+                if(Math.hypot(dx,dy)<90){
+                    m.hp-=15*classConfig[playerClass].dmgMod;
+                }
+            });
+        } else if(idx===2){ // 遠程箭雨
+            monsters.forEach(m=>{
+                m.hp-=10*classConfig[playerClass].dmgMod;
+            });
+        }
+    }
+}
+
+// Class select
+function selectClass(cls){
+    playerClass=cls;
+    const c=classConfig[cls];
+    player.speed=c.speed;
+    elements.playerClassEl.textContent=cls;
+    document.getElementById('classSelect').style.display='none';
+    initPlayer();
+    gameStarted=true;
+}
+
 // Init player
 function initPlayer(){player.x=canvas.width/2;player.y=canvas.height/2;}
 
-// Class select
-function selectClass(cls){playerClass=cls;const c=classConfig[cls];player.speed=c.speed;player.dmgMod=c.dmgMod;player.aoeRange=c.aoeRange;player.petActive=c.petActive;elements.playerClassEl.textContent=cls;document.getElementById('classSelect').style.display='none';resetGame();gameStarted=true;}
-
-// Shop
+// Shop/Inventory
 function toggleShop(){elements.shopGold.textContent=player.gold;document.getElementById('shopModal').style.display=document.getElementById('shopModal').style.display==='flex'?'none':'flex';}
-function buyPotion(){if(player.gold>=50){player.gold-=50;player.hp=Math.min(player.maxHp,player.hp+100);}}
+function buyPotion(){if(player.gold>=50){player.gold-=50;inventory.push({name:'HP藥水',heal:100});}}
 function buySpeed(){if(player.gold>=200){player.gold-=200;player.speed+=1;}}
 function closeShop(){document.getElementById('shopModal').style.display='none';}
 
-// Inventory
-function toggleInv(){elements.invList.innerHTML=inventory.map((item,i)=>`<button class="equip-btn" onclick="equipItem(${i})">${item.name}</button>`).join('');document.getElementById('inventory').style.display='flex';}
-function equipItem(i){inventory.splice(i,1);toggleInv();}
+function toggleInv(){
+elements.invList.innerHTML=inventory.map((item,i)=>`<button class="equip-btn" onclick="useItem(${i})">${item.name}</button>`).join('');
+document.getElementById('inventory').style.display='flex';
+}
+function useItem(i){
+    let item=inventory[i];
+    if(item.heal){player.hp=Math.min(player.maxHp,player.hp+item.heal);}
+    inventory.splice(i,1);
+    toggleInv();
+}
 function closeInv(){document.getElementById('inventory').style.display='none';}
 
 // Joystick
@@ -141,31 +186,41 @@ joystick.addEventListener('touchstart',e=>{joyActive=true;let t=e.targetTouches[
 joystick.addEventListener('touchmove',e=>{if(!joyActive)return;let t=e.targetTouches[0];joyMove={x:t.clientX-joyStart.x,y:t.clientY-joyStart.y};stick.style.transform=`translate(${joyMove.x}px,${joyMove.y}px)`;});
 joystick.addEventListener('touchend',e=>{joyActive=false;joyMove={x:0,y:0};stick.style.transform='translate(0,0)';});
 
-// Skill buttons touch
-elements.skill1.addEventListener('touchstart',()=>{});
-elements.skill2.addEventListener('touchstart',()=>{});
-elements.skill3.addEventListener('touchstart',()=>{});
+// Skill buttons
+elements.skill1.addEventListener('touchstart',()=>useSkill(0));
+elements.skill2.addEventListener('touchstart',()=>useSkill(1));
+elements.skill3.addEventListener('touchstart',()=>useSkill(2));
 
 // Shop/Inv touch
 document.getElementById('shopBtn').addEventListener('touchstart',()=>toggleShop());
 document.getElementById('invBtn').addEventListener('touchstart',()=>toggleInv());
 
-// Update UI
-function updateUI(){elements.playerLevel.textContent=player.level;elements.playerHp.textContent=Math.floor(player.hp);elements.playerMaxHp.textContent=player.maxHp;elements.gold.textContent=player.gold;elements.monsterCount.textContent=monsters.length;}
+// UI Update
+function updateUI(){
+elements.playerLevel.textContent=player.level;
+elements.playerHp.textContent=Math.floor(player.hp);
+elements.playerMaxHp.textContent=player.maxHp;
+elements.gold.textContent=player.gold;
+elements.monsterCount.textContent=monsters.length;
+elements.exp.textContent=player.exp;
+elements.nextExp.textContent=player.nextExp;
+}
 
 // Spawn monsters
-function spawnMonster(){monsters.push({x:Math.random()*canvas.width,y:Math.random()*canvas.height,size:25,hp:50});}
+function spawnMonster(){
+monsters.push({x:Math.random()*canvas.width,y:Math.random()*canvas.height,size:25,hp:50});
+}
 
-// Draw player & monsters
+// Draw
 function draw(){
 ctx.clearRect(0,0,canvas.width,canvas.height);
 // Player
 ctx.save();
 ctx.translate(player.x,player.y);
 ctx.fillStyle=playerClass==='warrior'? '#FF6B35':playerClass==='mage'? '#9B59B6':'#27AE60';
-ctx.fillRect(-player.size/2,-player.size,player.size,player.size*1.5); // body
+ctx.fillRect(-player.size/2,-player.size,player.size,player.size*1.5);
 ctx.fillStyle='#FFD700';
-ctx.beginPath();ctx.arc(0,-player.size*1.2,player.size/3,0,Math.PI*2);ctx.fill(); // head
+ctx.beginPath();ctx.arc(0,-player.size*1.2,player.size/3,0,Math.PI*2);ctx.fill();
 ctx.restore();
 // Monsters
 monsters.forEach(m=>{
@@ -177,20 +232,46 @@ ctx.restore();
 });
 }
 
-// Game loop
-function gameLoop(){
-// move player
-player.x+=joyMove.x*0.05;
-player.y+=joyMove.y*0.05;
-player.x=Math.max(player.size,Math.min(canvas.width-player.size,player.x));
-player.y=Math.max(player.size,Math.min(canvas.height-player.size,player.y));
-// spawn monsters if <5
-if(monsters.length<5) spawnMonster();
-draw();
-updateUI();
-requestAnimationFrame(gameLoop);
+// Skill cooldown update
+function updateSkillCD(delta){
+skillCooldowns.forEach((cd,i)=>{
+if(cd>0) skillCooldowns[i]-=delta;
+elements['cd'+(i+1)].style.width = `${Math.max(0, cd/skillMaxCD[i]*100)}%`;
+});
 }
 
+// Monster AI
+function updateMonsters(){
+monsters.forEach((m,i)=>{
+// Move towards player
+let dx=player.x-m.x, dy=player.y-m.y;
+let dist=Math.hypot(dx,dy);
+if(dist>0){ m.x += dx/dist * 1; m.y += dy/dist *1; }
+// Attack player
+if(dist<30){ player.hp -= 0.1; }
+// Remove dead monster
+if(m.hp<=0){ monsters.splice(i,1); player.gold+=10; player.exp+=20; if(player.exp>=player.nextExp){player.level++; player.exp=0; player.nextExp+=50; player.maxHp+=20; player.hp=player.maxHp;}} 
+});
+}
+
+// Game loop
+let lastTime=performance.now();
+function gameLoop(now){
+let delta=(now-lastTime)/1000; lastTime=now;
+if(!gameOver){
+player.x += (joyMove.x/50)*player.speed;
+player.y += (joyMove.y/50)*player.speed;
+player.x=Math.max(player.size,Math.min(canvas.width-player.size,player.x));
+player.y=Math.max(player.size,Math.min(canvas.height-player.size,player.y));
+if(monsters.length<5) spawnMonster();
+updateMonsters();
+updateSkillCD(delta);
+draw();
+updateUI();
+if(player.hp<=0){gameOver=true; alert("你死了！");}
+requestAnimationFrame(gameLoop);
+}
+}
 document.getElementById('classSelect').style.display='flex';
 initPlayer();
 gameLoop();
