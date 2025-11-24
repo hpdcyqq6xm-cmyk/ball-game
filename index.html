@@ -1,707 +1,199 @@
-<!doctype html>
-<html lang="zh-Hant">
+<!DOCTYPE html>
+<html lang="zh-TW">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-<title>MMORPG - Mobile UX Optimized</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>MMORPG 手機最佳化圖形版</title>
 <style>
-  :root{
-    --ui-bg: rgba(0,0,0,0.6);
-    --accent: #4A90E2;
-    --accent-2: #FFD700;
-    --safe-margin: 12px;
-    --btn-size: 72px; /* base size (scaled on larger screens) */
-  }
-  *{box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
-  html,body{height:100%;margin:0;background:linear-gradient(135deg,#05060a,#13131d);font-family:Inter, "Helvetica Neue", Arial, sans-serif;color:#fff;overflow:hidden;touch-action:none;}
-  canvas{display:block;width:100vw;height:100vh;background:radial-gradient(circle at center,#2a2a4a 0%, #0f0f14 70%);cursor:none;}
-
-  /* top status panel */
-  #status {
-    position:fixed;left:var(--safe-margin);top:var(--safe-margin);
-    background:linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
-    padding:10px 12px;border-radius:12px;backdrop-filter: blur(6px);
-    box-shadow: 0 6px 20px rgba(0,0,0,0.6); z-index:120;
-    font-size:14px;line-height:1.1;
-  }
-  #status div{margin:4px 0; color:#e6eef9; font-weight:600; letter-spacing:0.2px;}
-
-  /* right-side quick buttons */
-  .corner-btn{
-    position:fixed; right:var(--safe-margin); width:48px; height:48px; border-radius:12px;
-    display:flex;align-items:center;justify-content:center; font-size:22px;
-    background:var(--ui-bg); border:1px solid rgba(255,255,255,0.06); z-index:120; touch-action: manipulation;
-    box-shadow: 0 8px 18px rgba(0,0,0,0.6);
-  }
-  #shopBtn{ top:calc(50% - 26px - 80px); }
-  #invBtn{ top:calc(50% - 26px); }
-  #settingsBtn{ top:calc(50% - 26px + 80px); }
-
-  /* joystick container (movable) */
-  #joystickWrap{
-    position:fixed; left:var(--safe-margin); bottom:var(--safe-margin); width:160px; height:160px;
-    z-index:110; touch-action:none; display:flex; align-items:center; justify-content:center;
-    user-select:none;
-  }
-  #joystickBg{
-    width:140px; height:140px; border-radius:50%;
-    background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
-    border: 1px solid rgba(255,255,255,0.03); display:flex; align-items:center; justify-content:center;
-    transform-origin:center center;
-  }
-  #knob{
-    width:64px; height:64px; border-radius:50%;
-    background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04));
-    display:flex; align-items:center; justify-content:center; font-size:18px; color:#fff;
-    box-shadow: 0 8px 20px rgba(0,0,0,0.6), inset 0 0 8px rgba(255,255,255,0.02);
-    touch-action:none;
-  }
-  #joystickHint{
-    position:absolute; left:0; right:0; bottom: -22px; text-align:center; font-size:11px; color:#bcd;
-  }
-
-  /* right-bottom skill panel */
-  #skillPanel{
-    position:fixed; right:var(--safe-margin); bottom:var(--safe-margin); display:flex; gap:12px;
-    z-index:110; align-items:end; padding:6px;
-  }
-  .skill {
-    width:var(--btn-size); height:var(--btn-size); min-width:var(--btn-size);
-    border-radius:50%; position:relative; display:flex; align-items:center; justify-content:center;
-    background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));
-    border: 2px solid rgba(255,255,255,0.06); touch-action: manipulation;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.6);
-    font-size:28px; user-select:none;
-  }
-
-  /* cooldown ring overlay using conic gradient */
-  .skill .cd {
-    position:absolute; inset:0; border-radius:50%; pointer-events:none;
-    background: conic-gradient(rgba(255,255,255,0.06) 0deg, rgba(255,255,255,0.02) 360deg);
-    opacity:0.95;
-    transition:background 120ms linear;
-    mix-blend-mode: screen;
-  }
-  .skill .cd.hidden{ opacity:0; }
-
-  /* small label */
-  .skill .label{ position:absolute; bottom:-18px; width:100%; text-align:center; font-size:12px; color:#cfe; }
-
-  /* tooltips / tutorial overlay */
-  #tutorial {
-    position:fixed; left:0; right:0; top:0; bottom:0; background:linear-gradient(0deg, rgba(0,0,0,0.75), rgba(0,0,0,0.6)); z-index:200;
-    display:flex; align-items:center; justify-content:center; padding:20px;
-  }
-  #tutorial .card{
-    background:rgba(20,24,30,0.95); padding:18px; border-radius:14px; max-width:420px; text-align:left; color:#eaf6ff;
-    box-shadow: 0 12px 40px rgba(0,0,0,0.7);
-  }
-  #tutorial .card h2{ margin:0 0 8px 0; font-size:18px; }
-  #tutorial .card p{ font-size:14px; color:#cde; margin:6px 0; line-height:1.4; }
-  #tutorial button { margin-top:12px; display:block; width:100%; padding:10px; border-radius:10px; border:none; background:var(--accent); color:#001; font-weight:700; }
-
-  /* responsive tweaks */
-  @media (max-width:420px){
-    :root{ --btn-size:64px; }
-    #joystickWrap{ width:140px; height:140px; }
-    #knob{ width:56px; height:56px;}
-    .corner-btn{ width:44px; height:44px; font-size:20px;}
-  }
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:linear-gradient(135deg,#0a0a0a,#1a1a2e);color:#fff;font-family:'Arial Black',Arial,sans-serif;overflow:hidden;touch-action:none;}
+canvas{display:block;width:100vw;height:100vh;background:radial-gradient(circle at center,#2a2a4a 0%,#111 70%);}
+#ui{position:fixed;top:5px;left:5px;right:5px;background:rgba(0,0,0,0.7);padding:10px;border-radius:12px;font-size:14px;text-align:center;backdrop-filter: blur(10px);z-index:100;}
+#bottomUI{position:fixed;bottom:10px;right:10px;display:flex;gap:10px;z-index:100;}
+.skill-btn{width:60px;height:60px;border-radius:50%;background:linear-gradient(45deg,#4A90E2,#357ABD);border:2px solid #fff;font-size:24px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 15px rgba(74,144,226,0.5);position:relative;}
+.skill-btn.cd{opacity:0.5;pointer-events:none;}
+.cd-bar{position:absolute;bottom:-5px;left:50%;transform:translateX(-50%);width:80%;height:4px;background: rgba(255,255,255,0.8);border-radius:2px;}
+.cd-fill{height:100%;background:linear-gradient(90deg,#ff0000,#ffff00);transition:width 0.1s;}
+#shopBtn,#invBtn{position: fixed;top:10px;width:50px;height:50px;border-radius:50%;font-size:24px;border:none;cursor:pointer;z-index:100;display:flex;align-items:center;justify-content:center;}
+#shopBtn{right:70px;background:#FFD700;color:#000;box-shadow:0 0 15px #FFD700;}
+#invBtn{right:10px;background:#4CAF50;color:#fff;box-shadow:0 0 15px #4CAF50;}
+.modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background: rgba(0,0,0,0.9);z-index:200;align-items:center;justify-content:center;}
+.modalContent{background:#222;padding:25px;border-radius:15px;text-align:center;max-width:350px;}
+.item-btn,.class-btn,.equip-btn{margin:8px 0;padding:12px 20px;border:none;border-radius:10px;cursor:pointer;font-size:16px;}
+.item-btn{background:#4CAF50;color:#fff;}
+.class-btn{background:linear-gradient(45deg,#4A90E2,#357ABD);color:#fff;}
+.equip-btn{background:#FFD700;color:#000;width:100%;}
+#joystick{position: fixed;bottom:10px;left:10px;width:100px;height:100px;border-radius:50%;background: rgba(255,255,255,0.2);z-index:100;touch-action:none;}
+#stick{position:absolute;left:50%;top:50%;width:50px;height:50px;margin-left:-25px;margin-top:-25px;border-radius:50%;background: rgba(255,255,255,0.5);}
 </style>
 </head>
 <body>
-  <canvas id="canvas"></canvas>
+<canvas id="canvas"></canvas>
 
-  <div id="status" aria-live="polite">
-    <div id="statClass">職業: <strong id="playerClass">未選</strong></div>
-    <div>等級 <span id="playerLevel">1</span>  HP <span id="playerHp">100</span>/<span id="playerMaxHp">100</span></div>
-    <div>金幣 <span id="gold">0</span> | 怪物 <span id="monsterCount">0</span></div>
-  </div>
+<div id="ui">
+<div>職業: <span id="playerClass">未選擇</span> | 等級: <span id="playerLevel">1</span> | EXP: <span id="exp">0</span>/<span id="nextExp">100</span></div>
+<div>HP: <span id="playerHp">100</span>/<span id="playerMaxHp">100</span> | 金幣: <span id="gold">0</span></div>
+<div>怪物: <span id="monsterCount">0</span></div>
+</div>
 
-  <!-- corner quick buttons -->
-  <button id="shopBtn" class="corner-btn" aria-label="商店">🛒</button>
-  <button id="invBtn" class="corner-btn" aria-label="背包">🎒</button>
-  <button id="settingsBtn" class="corner-btn" aria-label="設定">⚙️</button>
+<div id="bottomUI">
+<div class="skill-btn" id="skill1">⚔️<div class="cd-bar"><div class="cd-fill" id="cd1"></div></div></div>
+<div class="skill-btn" id="skill2">🌀<div class="cd-bar"><div class="cd-fill" id="cd2"></div></div></div>
+<div class="skill-btn" id="skill3">🏹<div class="cd-bar"><div class="cd-fill" id="cd3"></div></div></div>
+</div>
 
-  <!-- movable joystick -->
-  <div id="joystickWrap" aria-hidden="true" title="拖動搖桿以移動（長按可拖曳重定位）">
-    <div id="joystickBg">
-      <div id="knob">●</div>
-      <div id="joystickHint">拖動移動</div>
-    </div>
-  </div>
+<button id="shopBtn">🛒</button>
+<button id="invBtn">🎒</button>
 
-  <!-- right-bottom skill area -->
-  <div id="skillPanel" aria-hidden="false">
-    <div class="skill" id="skillA" data-index="0" role="button" aria-label="技能一">
-      ⚔️
-      <div class="cd" id="cdA"></div>
-      <div class="label">Q</div>
-    </div>
-    <div class="skill" id="skillB" data-index="1" role="button" aria-label="技能二">
-      🌀
-      <div class="cd" id="cdB"></div>
-      <div class="label">E</div>
-    </div>
-    <div class="skill" id="skillC" data-index="2" role="button" aria-label="技能三">
-      🏹
-      <div class="cd" id="cdC"></div>
-      <div class="label">R</div>
-    </div>
-  </div>
+<div id="shopModal" class="modal">
+<div class="modalContent">
+<h2>商店</h2>
+<p>金幣: <span id="shopGold">0</span></p>
+<button class="item-btn" onclick="buyPotion()">HP藥水 x5 (50金)</button>
+<button class="item-btn" onclick="buySpeed()">速度+1 (200金)</button>
+<button class="item-btn" onclick="closeShop()">關閉</button>
+</div>
+</div>
 
-  <!-- tutorial overlay -->
-  <div id="tutorial" role="dialog" aria-modal="true">
-    <div class="card">
-      <h2>觸控教學（快速開始）</h2>
-      <p>• 左下拖曳搖桿移動。長按搖桿可拖動位置至任意角落。</p>
-      <p>• 右下為技能按鈕：點擊施放；圓環代表冷卻。</p>
-      <p>• 點擊畫面任意位置可快速移動至該處（短點/短滑）。雙擊畫面或雙指上滑可閃避。</p>
-      <button id="gotItBtn">開始遊戲</button>
-    </div>
-  </div>
+<div id="inventory" class="modal">
+<div class="modalContent">
+<h2>背包</h2>
+<div id="invList"></div>
+<button class="item-btn" onclick="closeInv()">關閉</button>
+</div>
+</div>
+
+<div id="classSelect" class="modal">
+<div class="modalContent">
+<h2>選擇職業</h2>
+<p>決定你的遊玩風格</p>
+<button class="class-btn" onclick="selectClass('warrior')">⚔️ 戰士</button>
+<button class="class-btn" onclick="selectClass('mage')">🔮 法師</button>
+<button class="class-btn" onclick="selectClass('ranger')">🏹 遊俠</button>
+</div>
+</div>
+
+<div id="joystick"><div id="stick"></div></div>
 
 <script>
-/* ===============================
-   Setup canvas / DPR handling
-   =============================== */
-const canvas = document.getElementById('canvas');
-const ctx = canvas.getContext('2d');
-let dpr = Math.max(1, window.devicePixelRatio || 1);
-function resize(){
-  canvas.style.width = window.innerWidth + 'px';
-  canvas.style.height = window.innerHeight + 'px';
-  canvas.width = Math.floor(window.innerWidth * dpr);
-  canvas.height = Math.floor(window.innerHeight * dpr);
-  ctx.setTransform(dpr,0,0,dpr,0,0);
-}
-window.addEventListener('resize', resize);
-resize();
+// Canvas & ctx
+const canvas=document.getElementById('canvas');
+const ctx=canvas.getContext('2d');
+function resizeCanvas(){canvas.width=window.innerWidth;canvas.height=window.innerHeight;}
+window.addEventListener('resize',resizeCanvas);
+resizeCanvas();
 
-/* ===============================
-   Game state (kept simple)
-   =============================== */
-let playerClass = '未選';
-let player = {
-  x: canvas.width/dpr/2, y: canvas.height/dpr/2,
-  size: 28, hp:100, maxHp:100, level:1, exp:0, nextExp:100, gold:0,
-  speed:5, dmgMod:1, aoeRange:60, petActive:false, dodgeCD:0, dodgeTime:0
+// UI elements
+const elements={
+playerClassEl: document.getElementById('playerClass'),
+playerLevel: document.getElementById('playerLevel'),
+exp: document.getElementById('exp'),
+nextExp: document.getElementById('nextExp'),
+playerHp: document.getElementById('playerHp'),
+playerMaxHp: document.getElementById('playerMaxHp'),
+gold: document.getElementById('gold'),
+monsterCount: document.getElementById('monsterCount'),
+shopGold: document.getElementById('shopGold'),
+skill1: document.getElementById('skill1'),
+skill2: document.getElementById('skill2'),
+skill3: document.getElementById('skill3'),
+cd1: document.getElementById('cd1'),
+cd2: document.getElementById('cd2'),
+cd3: document.getElementById('cd3'),
+invList: document.getElementById('invList')
 };
-let monsters = [];
-let particles = [];
-let projectiles = [];
-let inventory = [];
-let equipped = { hpBonus:0, dmgBonus:0 };
-let gameStarted = false;
-let gameOver = false;
 
-/* constants */
-const MAX_MONSTERS = 5;
-const ATTACK_INTERVAL = 800;
-const DODGE_CD = 900; // shorter for mobile feel
-const DODGE_TIME = 500;
+// Player
+let playerClass=null;
+let player={x:0,y:0,hp:100,maxHp:100,level:1,exp:0,nextExp:100,gold:0,speed:5,size:25,vx:0,vy:0,dodgeTime:0,dodgeCD:0,dmgMod:1,aoeRange:60,petActive:false};
+let inventory=[],equipped={hpBonus:0,dmgBonus:0};
+let monsters=[];
+let keys={},gameStarted=false,gameOver=false;
 
-/* UI elements */
-const elPlayerClass = document.getElementById('playerClass');
-const elPlayerLevel = document.getElementById('playerLevel');
-const elPlayerHp = document.getElementById('playerHp');
-const elPlayerMaxHp = document.getElementById('playerMaxHp');
-const elGold = document.getElementById('gold');
-const elMonsterCount = document.getElementById('monsterCount');
+// Classes
+const classConfig={
+warrior:{speed:4.8,dmgMod:1.5,aoeRange:50,petActive:false},
+mage:{speed:5.5,dmgMod:1.2,aoeRange:90,petActive:false},
+ranger:{speed:5.2,dmgMod:1.3,aoeRange:70,petActive:true}
+};
 
-function updateStatusUI(){
-  elPlayerClass.textContent = playerClass;
-  elPlayerLevel.textContent = player.level;
-  elPlayerHp.textContent = Math.max(0, Math.floor(player.hp));
-  elPlayerMaxHp.textContent = Math.floor(player.maxHp);
-  elGold.textContent = player.gold;
-  elMonsterCount.textContent = monsters.filter(m=>m.alive).length;
-}
+// Init player
+function initPlayer(){player.x=canvas.width/2;player.y=canvas.height/2;}
 
-/* ===============================
-   Audio / Haptics
-   =============================== */
-let audioCtx = null;
-function ensureAudio(){ if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }
-function playSound(freq,duration=0.08,type='sine'){
-  try{
-    ensureAudio();
-    const o = audioCtx.createOscillator();
-    const g = audioCtx.createGain();
-    o.connect(g); g.connect(audioCtx.destination);
-    o.type = type; o.frequency.value = freq;
-    g.gain.setValueAtTime(0.25,audioCtx.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.01,audioCtx.currentTime+duration);
-    o.start(audioCtx.currentTime); o.stop(audioCtx.currentTime+duration);
-  }catch(e){}
-}
-function vibrate(duration=30){ if(navigator.vibrate) navigator.vibrate(duration); }
+// Class select
+function selectClass(cls){playerClass=cls;const c=classConfig[cls];player.speed=c.speed;player.dmgMod=c.dmgMod;player.aoeRange=c.aoeRange;player.petActive=c.petActive;elements.playerClassEl.textContent=cls;document.getElementById('classSelect').style.display='none';resetGame();gameStarted=true;}
 
-/* ===============================
-   Spawn monsters / particles
-   =============================== */
-function spawnMonster(){
-  if(!gameStarted) return;
-  if(monsters.length < MAX_MONSTERS){
-    monsters.push({
-      x: Math.random()*(canvas.width/dpr-80)+40,
-      y: Math.random()*(canvas.height/dpr-160)+80,
-      hp: 40 + player.level*10, maxHp: 40 + player.level*10,
-      speed: 1.6 + player.level*0.15, size: 16, lastAttack:0, alive:true, goldDrop: 8 + Math.floor(Math.random()*18)
-    });
-  }
-}
-for(let i=0;i<3;i++) spawnMonster();
+// Shop
+function toggleShop(){elements.shopGold.textContent=player.gold;document.getElementById('shopModal').style.display=document.getElementById('shopModal').style.display==='flex'?'none':'flex';}
+function buyPotion(){if(player.gold>=50){player.gold-=50;player.hp=Math.min(player.maxHp,player.hp+100);}}
+function buySpeed(){if(player.gold>=200){player.gold-=200;player.speed+=1;}}
+function closeShop(){document.getElementById('shopModal').style.display='none';}
 
-function createParticles(x,y,color,count=12,spd=3,life=36){
-  for(let i=0;i<count;i++){
-    particles.push({
-      x,y, vx:(Math.random()-0.5)*spd, vy:(Math.random()-0.5)*spd,
-      life, maxLife:life, color, size:Math.random()*3+1.5
-    });
-  }
-}
-function updateParticles(){
-  for(let i=particles.length-1;i>=0;i--){
-    let p = particles[i];
-    p.x += p.vx; p.y += p.vy; p.life--;
-    p.size *= 0.98;
-    if(p.life<=0){ particles.splice(i,1); continue; }
-    ctx.save();
-    ctx.globalAlpha = Math.max(0,p.life/p.maxLife);
-    ctx.fillStyle = p.color;
-    ctx.beginPath(); ctx.arc(p.x,p.y,p.size,0,Math.PI*2); ctx.fill();
-    ctx.restore();
-  }
-}
+// Inventory
+function toggleInv(){elements.invList.innerHTML=inventory.map((item,i)=>`<button class="equip-btn" onclick="equipItem(${i})">${item.name}</button>`).join('');document.getElementById('inventory').style.display='flex';}
+function equipItem(i){inventory.splice(i,1);toggleInv();}
+function closeInv(){document.getElementById('inventory').style.display='none';}
 
-/* ===============================
-   Projectiles
-   =============================== */
-function updateProjectiles(){
-  for(let i=projectiles.length-1;i>=0;i--){
-    let pr = projectiles[i];
-    pr.x += pr.vx; pr.y += pr.vy;
-    if(pr.x<-50||pr.x>canvas.width/dpr+50||pr.y<-50||pr.y>canvas.height/dpr+50){ projectiles.splice(i,1); continue;}
-    ctx.save(); ctx.translate(pr.x,pr.y); ctx.fillStyle=pr.color; ctx.beginPath(); ctx.arc(0,0,pr.size,0,Math.PI*2); ctx.fill(); ctx.restore();
-    for(let j=monsters.length-1;j>=0;j--){
-      let m = monsters[j];
-      if(m.alive && Math.hypot(m.x-pr.x,m.y-pr.y)<28){
-        m.hp -= (22 + player.level*3) * player.dmgMod;
-        createParticles(m.x,m.y,'#FFD700',18,4); playSound(880,0.08);
-        projectiles.splice(i,1);
-        if(m.hp<=0) killMonster(m);
-        break;
-      }
-    }
-  }
-}
+// Joystick
+const joystick=document.getElementById('joystick'),stick=document.getElementById('stick');
+let joyStart={x:0,y:0},joyMove={x:0,y:0},joyActive=false;
+joystick.addEventListener('touchstart',e=>{joyActive=true;let t=e.targetTouches[0];joyStart={x:t.clientX,y:t.clientY};});
+joystick.addEventListener('touchmove',e=>{if(!joyActive)return;let t=e.targetTouches[0];joyMove={x:t.clientX-joyStart.x,y:t.clientY-joyStart.y};stick.style.transform=`translate(${joyMove.x}px,${joyMove.y}px)`;});
+joystick.addEventListener('touchend',e=>{joyActive=false;joyMove={x:0,y:0};stick.style.transform='translate(0,0)';});
 
-/* ===============================
-   Kill & loot & levelup
-   =============================== */
-function killMonster(m){
-  if(!m) return;
-  player.exp += 20 + player.level*5;
-  player.gold += m.goldDrop;
-  createParticles(m.x,m.y,'#FF4444',26,6);
-  playSound(240,0.12,'square'); vibrate(18);
-  dropLoot();
-  if(player.exp>=player.nextExp) levelUp();
-  m.alive=false;
-  setTimeout(()=>{ let idx = monsters.indexOf(m); if(idx>-1) monsters.splice(idx,1); },700);
-}
-function dropLoot(){
-  if(Math.random() < 0.22){
-    let names = playerClass==='warrior'?['鐵劍','戰斧']:playerClass==='mage'?['法杖','魔晶']:['獵弓','箭袋'];
-    let loot = { name: names[Math.floor(Math.random()*names.length)], rarity: Math.random()>0.6?'紫':Math.random()>0.3?'藍':'綠', hp:15+Math.random()*36, dmg:4+Math.random()*12 };
-    inventory.push(loot);
-    createParticles(player.x,player.y,'#FFD700',12,4); playSound(1000,0.12);
-  }
-}
-function levelUp(){
-  player.level++; player.exp = 0; player.nextExp = Math.floor(player.nextExp*1.5);
-  player.maxHp += 30 + equipped.hpBonus*0.1; player.hp = player.maxHp; player.speed += 0.35;
-  createParticles(player.x,player.y,'#00FF88',50,10); playSound(1200,0.18); vibrate(30);
-}
+// Skill buttons touch
+elements.skill1.addEventListener('touchstart',()=>{});
+elements.skill2.addEventListener('touchstart',()=>{});
+elements.skill3.addEventListener('touchstart',()=>{});
 
-/* ===============================
-   Skills: cooldown handling + UI
-   =============================== */
-const skills = [
-  {name:'dashSlash', key:'q', cd:1500, active:false, cdTime:0},
-  {name:'spinSlash', key:'e', cd:2600, active:false, cdTime:0},
-  {name:'arrow', key:'r', cd:2200, active:false, cdTime:0}
-];
-function useSkill(i){
-  const s = skills[i];
-  if(Date.now() - s.cdTime < s.cd) return;
-  s.cdTime = Date.now();
-  s.active = true;
-  playSound(900 + i*160,0.08); vibrate(10);
-  setTimeout(()=>{ s.active=false; },260);
-  // skill-specific effects simplified:
-  if(s.name === 'arrow'){
-    let angle = Math.random()*Math.PI*2;
-    projectiles.push({ x:player.x, y:player.y, vx:Math.cos(angle)*10, vy:Math.sin(angle)*10, size:4, color:'#FFD700' });
-  } else {
-    // AOE damage to nearby monsters
-    monsters.forEach(m=>{
-      if(m.alive && Math.hypot(m.x-player.x,m.y-player.y) < (50 + player.aoeRange*0.6)){
-        m.hp -= (30 + player.level*4) * player.dmgMod;
-        createParticles(m.x,m.y,'#FFAA00',10,4);
-        if(m.hp<=0) killMonster(m);
-      }
-    });
-  }
-  updateSkillUI();
-}
-function updateSkillUI(){
-  skills.forEach((s,idx)=>{
-    const el = document.getElementById(['cdA','cdB','cdC'][idx]);
-    const elapsed = Date.now() - s.cdTime;
-    let progress = Math.max(0, Math.min(1, elapsed / s.cd));
-    // render conic gradient degrees (360 * progress)
-    const degrees = progress * 360;
-    el.style.background = `conic-gradient(rgba(255,255,255,0.04) ${degrees}deg, rgba(0,0,0,0.0) 0deg)`;
-    el.style.opacity = progress >= 1 ? 0 : 0.95;
-  });
-}
+// Shop/Inv touch
+document.getElementById('shopBtn').addEventListener('touchstart',()=>toggleShop());
+document.getElementById('invBtn').addEventListener('touchstart',()=>toggleInv());
 
-/* ===============================
-   Movement: joystick & tap-to-move & dodge gestures
-   =============================== */
-let targetX = player.x, targetY = player.y, hasTarget = false;
-let lastTap = 0;
-canvas.addEventListener('pointerdown', (e)=>{
-  // ignore if clicking UI (we check target)
-  const hit = document.elementFromPoint(e.clientX, e.clientY);
-  if(hit && (hit.closest('.skill') || hit.closest('#joystickWrap') || hit.closest('.corner-btn') )) return;
-  // set target move
-  const rect = canvas.getBoundingClientRect();
-  targetX = (e.clientX - rect.left) * (canvas.width/rect.width) / dpr;
-  targetY = (e.clientY - rect.top) * (canvas.height/rect.height) / dpr;
-  hasTarget = true;
-  // double-tap to dodge
-  const now = Date.now();
-  if(now - lastTap < 280){
-    attemptDodge();
-    lastTap = 0;
-  } else lastTap = now;
-});
+// Update UI
+function updateUI(){elements.playerLevel.textContent=player.level;elements.playerHp.textContent=Math.floor(player.hp);elements.playerMaxHp.textContent=player.maxHp;elements.gold.textContent=player.gold;elements.monsterCount.textContent=monsters.length;}
 
-// dodge function
-function attemptDodge(){
-  if(Date.now() - player.dodgeCD > DODGE_CD){
-    player.dodgeTime = Date.now() + DODGE_TIME; player.dodgeCD = Date.now();
-    createParticles(player.x,player.y,'#00FFFF',24,6); playSound(1400,0.08); vibrate(20);
-  }
-}
+// Spawn monsters
+function spawnMonster(){monsters.push({x:Math.random()*canvas.width,y:Math.random()*canvas.height,size:25,hp:50});}
 
-/* joystick: movable + double-tap for dash */
-const joystickWrap = document.getElementById('joystickWrap');
-const joystickBg = document.getElementById('joystickBg');
-const knob = document.getElementById('knob');
-let joy = { active:false, id:null, start:{x:0,y:0}, pos:{x:0,y:0}, dx:0, dy:0, relocated:false };
-const JOY_MAX = 44;
-
-joystickBg.addEventListener('pointerdown', (e)=>{
-  e.preventDefault();
-  joystickBg.setPointerCapture(e.pointerId);
-  joy.active = true; joy.id = e.pointerId;
-  const rect = joystickBg.getBoundingClientRect();
-  joy.start = { x: rect.left + rect.width/2, y: rect.top + rect.height/2 };
-});
-joystickBg.addEventListener('pointermove', (e)=>{
-  if(!joy.active || e.pointerId !== joy.id) return;
-  updateJoystick(e.clientX, e.clientY);
-});
-joystickBg.addEventListener('pointerup', (e)=>{
-  if(e.pointerId !== joy.id) return;
-  joy.active=false; joy.id=null; joy.dx=0; joy.dy=0;
-  knob.style.transform = 'translate(-50%,-50%)';
-  joy.pos = {x:0,y:0};
-});
-function updateJoystick(cx, cy){
-  const dx = cx - joy.start.x, dy = cy - joy.start.y;
-  const dist = Math.hypot(dx,dy);
-  const angle = Math.atan2(dy,dx);
-  const limited = Math.min(JOY_MAX, dist);
-  const kx = Math.cos(angle)*limited, ky = Math.sin(angle)*limited;
-  knob.style.transform = `translate(calc(-50% + ${kx}px), calc(-50% + ${ky}px))`;
-  joy.dx = kx / JOY_MAX; joy.dy = ky / JOY_MAX;
-}
-
-/* long-press to reposition joystick */
-let longpressTimer = null;
-joystickBg.addEventListener('pointerdown', (e)=>{
-  if(e.pointerType === 'mouse') return; // only for touch
-  longpressTimer = setTimeout(()=>{
-    // set relocation mode: allow next drag of the whole joystickWrap
-    joy.relocated = true;
-    joystickWrap.style.transition = 'transform 0.12s ease-out';
-    joystickWrap.animate([{ transform: 'scale(1)' }, { transform: 'scale(0.96)' }, { transform: 'scale(1)' }], {duration:180});
-  }, 500);
-});
-joystickBg.addEventListener('pointerup', (e)=>{ clearTimeout(longpressTimer); longpressTimer=null; joy.relocated=false; });
-
-/* allow dragging joystickWrap when relocated */
-let dragId = null;
-joystickWrap.addEventListener('pointerdown', (e)=>{
-  if(!joy.relocated) return;
-  dragId = e.pointerId;
-  joystickWrap.setPointerCapture(dragId);
-  joystickWrap._start = { x: e.clientX, y: e.clientY, left: joystickWrap.offsetLeft, top: joystickWrap.offsetTop };
-});
-joystickWrap.addEventListener('pointermove', (e)=>{
-  if(dragId !== e.pointerId) return;
-  const dx = e.clientX - joystickWrap._start.x, dy = e.clientY - joystickWrap._start.y;
-  joystickWrap.style.left = Math.min(window.innerWidth - 80, Math.max(8, joystickWrap._start.left + dx)) + 'px';
-  joystickWrap.style.bottom = 'var(--safe-margin)'; // keep bottom anchored for simplicity
-});
-joystickWrap.addEventListener('pointerup', (e)=>{
-  if(dragId !== e.pointerId) return;
-  joystickWrap.releasePointerCapture(dragId);
-  dragId = null; joy.relocated = false;
-});
-
-/* multi-finger gestures: two-finger swipe up for dodge */
-let activePointers = {};
-canvas.addEventListener('pointerdown', (e)=>{ activePointers[e.pointerId] = {x:e.clientX,y:e.clientY,time:Date.now()}; });
-canvas.addEventListener('pointerup', (e)=>{
-  const start = activePointers[e.pointerId];
-  if(start){
-    const dy = start.y - e.clientY;
-    const dt = Date.now() - start.time;
-    if(Object.keys(activePointers).length >= 2 && dy > 60 && dt < 600){
-      attemptDodge();
-    }
-  }
-  delete activePointers[e.pointerId];
-});
-
-/* ===============================
-   Update loop: movement, AI, skills
-   =============================== */
-function update(){
-  if(gameOver || !gameStarted) return;
-
-  // joystick movement has priority
-  let vx = 0, vy = 0;
-  if(Math.abs(joy.dx) > 0.02 || Math.abs(joy.dy) > 0.02){
-    vx = joy.dx * player.speed;
-    vy = joy.dy * player.speed;
-    hasTarget = false;
-  } else if(hasTarget){
-    const dx = targetX - player.x, dy = targetY - player.y;
-    const dist = Math.hypot(dx,dy);
-    if(dist > 8){
-      vx += (dx / dist) * player.speed * 0.7;
-      vy += (dy / dist) * player.speed * 0.7;
-    } else hasTarget = false;
-  }
-
-  // dodge motion if active
-  if(Date.now() < player.dodgeTime){
-    // small burst
-    player.x += (vx*0.12) + (player.dodgeDir?player.dodgeDir.x*8:0);
-    player.y += (vy*0.12) + (player.dodgeDir?player.dodgeDir.y*8:0);
-  } else {
-    player.x += vx * 0.06;
-    player.y += vy * 0.06;
-  }
-  // clamp
-  player.x = Math.max(player.size, Math.min(canvas.width/dpr - player.size, player.x));
-  player.y = Math.max(player.size, Math.min(canvas.height/dpr - player.size, player.y));
-
-  // monsters AI & combat
-  let alive = monsters.filter(m=>m.alive);
-  alive.forEach(m=>{
-    const dx = player.x - m.x, dy = player.y - m.y;
-    const dist = Math.hypot(dx,dy);
-    if(dist > 40){
-      m.x += (dx/dist) * m.speed * 0.9;
-      m.y += (dy/dist) * m.speed * 0.9;
-    }
-    if(dist < 42 && Date.now() - m.lastAttack > 1100){
-      if(Date.now() > player.dodgeTime) player.hp -= 8;
-      m.lastAttack = Date.now();
-      createParticles(player.x, player.y, '#E74C3C', 8, 4);
-      playSound(320,0.08); vibrate(12);
-    }
-    if(dist < 36 && Date.now() - player.lastAttack > ATTACK_INTERVAL && Date.now() > player.dodgeTime){
-      m.hp -= (12 + player.level*3) * player.dmgMod;
-      player.lastAttack = Date.now();
-      createParticles(m.x,m.y,'#4A90E2',8,3);
-      if(m.hp<=0) killMonster(m);
-    }
-  });
-
-  // skill side effects
-  skills.forEach((s, idx)=>{
-    if(s.active){
-      // small area damage handled in useSkill when triggered
-    }
-  });
-
-  // spawn if needed
-  if(alive.length < Math.ceil(MAX_MONSTERS*0.6)) spawnMonster();
-  if(player.hp <= 0) gameOver = true;
-
-  // update projs / particles
-  updateProjectiles();
-  updateParticles();
-  updateSkillUI();
-  updateStatusUI();
-}
-
-/* ===============================
-   Drawing
-   =============================== */
+// Draw player & monsters
 function draw(){
-  // clear
-  ctx.clearRect(0,0,canvas.width/dpr, canvas.height/dpr);
-
-  // subtle background texture
-  ctx.fillStyle = 'rgba(100,150,255,0.008)';
-  for(let i=0;i<30;i++){
-    ctx.beginPath(); ctx.arc(Math.random()*canvas.width/dpr, Math.random()*canvas.height/dpr, 0.6,0,Math.PI*2); ctx.fill();
-  }
-
-  // projectiles drawn earlier in updateProjectiles
-
-  // player
-  ctx.save();
-  ctx.translate(player.x, player.y);
-  ctx.shadowBlur = 24;
-  ctx.shadowColor = '#4A90E2';
-  ctx.fillStyle = '#27AE60';
-  ctx.beginPath(); ctx.arc(0,0,player.size,0,Math.PI*2); ctx.fill();
-  ctx.restore();
-
-  // hp bar above player
-  const barW = Math.min(140, (canvas.width/dpr)*0.14), bh=12;
-  const hpRatio = Math.max(0, player.hp/player.maxHp);
-  ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.fillRect(player.x-barW/2, player.y-player.size-26, barW, bh);
-  ctx.fillStyle = hpRatio>0.6?'#4CAF50':hpRatio>0.3?'#FF9800':'#F44336';
-  ctx.fillRect(player.x-barW/2, player.y-player.size-26, barW*hpRatio, bh);
-
-  // monsters
-  monsters.filter(m=>m.alive).forEach(m=>{
-    ctx.save(); ctx.translate(m.x,m.y);
-    ctx.shadowBlur = 12; ctx.shadowColor = '#E74C3C';
-    ctx.fillStyle = '#E74C3C';
-    ctx.beginPath(); ctx.arc(0,0,m.size,0,Math.PI*2); ctx.fill();
-    ctx.restore();
-    const mhRatio = Math.max(0, m.hp/m.maxHp);
-    ctx.fillStyle='rgba(0,0,0,0.6)'; ctx.fillRect(m.x-18, m.y-m.size-18, 36,6);
-    ctx.fillStyle = mhRatio>0.6?'#4CAF50':mhRatio>0.3?'#FF9800':'#F44336';
-    ctx.fillRect(m.x-18, m.y-m.size-18, 36*mhRatio,6);
-  });
-
-  if(gameOver){
-    ctx.fillStyle = 'rgba(0,0,0,0.85)'; ctx.fillRect(0,0,canvas.width/dpr, canvas.height/dpr);
-    ctx.fillStyle = '#FFD700'; ctx.textAlign='center'; ctx.font = `bold ${Math.min(64, (canvas.width/dpr)*0.08)}px Arial`;
-    ctx.fillText('遊戲結束', canvas.width/dpr/2, canvas.height/dpr/2);
-    ctx.font = `${Math.min(28, (canvas.width/dpr)*0.035)}px Arial`; ctx.fillText('重整頁面或按職業重新開始', canvas.width/dpr/2, canvas.height/dpr/2+48);
-  }
+ctx.clearRect(0,0,canvas.width,canvas.height);
+// Player
+ctx.save();
+ctx.translate(player.x,player.y);
+ctx.fillStyle=playerClass==='warrior'? '#FF6B35':playerClass==='mage'? '#9B59B6':'#27AE60';
+ctx.fillRect(-player.size/2,-player.size,player.size,player.size*1.5); // body
+ctx.fillStyle='#FFD700';
+ctx.beginPath();ctx.arc(0,-player.size*1.2,player.size/3,0,Math.PI*2);ctx.fill(); // head
+ctx.restore();
+// Monsters
+monsters.forEach(m=>{
+ctx.save();
+ctx.translate(m.x,m.y);
+ctx.fillStyle='#E74C3C';
+ctx.fillRect(-m.size/2,-m.size/2,m.size,m.size);
+ctx.restore();
+});
 }
 
-/* ===============================
-   Main loop
-   =============================== */
-let lastTime = performance.now();
-function loop(){
-  const now = performance.now();
-  const dt = Math.min(40, now - lastTime)/1000;
-  lastTime = now;
-  update();
-  draw();
-  requestAnimationFrame(loop);
+// Game loop
+function gameLoop(){
+// move player
+player.x+=joyMove.x*0.05;
+player.y+=joyMove.y*0.05;
+player.x=Math.max(player.size,Math.min(canvas.width-player.size,player.x));
+player.y=Math.max(player.size,Math.min(canvas.height-player.size,player.y));
+// spawn monsters if <5
+if(monsters.length<5) spawnMonster();
+draw();
+updateUI();
+requestAnimationFrame(gameLoop);
 }
-loop();
 
-/* ===============================
-   Skill buttons wiring (touch-friendly)
-   =============================== */
-function bindSkillEl(id, idx){
-  const el = document.getElementById(id);
-  el.addEventListener('pointerdown', (e)=>{ e.preventDefault(); useSkill(idx); el.animate([{transform:'scale(1)'},{transform:'scale(0.95)'},{transform:'scale(1)'}],{duration:140}); });
-  el.addEventListener('touchstart', (e)=>{ e.preventDefault(); }, {passive:false});
-}
-bindSkillEl('skillA',0); bindSkillEl('skillB',1); bindSkillEl('skillC',2);
-
-/* ===============================
-   Skill UI is updated via updateSkillUI() earlier
-   =============================== */
-
-/* ===============================
-   Shop / Inventory / Settings
-   =============================== */
-document.getElementById('shopBtn').addEventListener('pointerdown', (e) => {
-  e.preventDefault();
-  vibrate(10); playSound(700,0.06);
-  alert(`商店（示範）\n你目前有 ${player.gold} 金幣。`);
-});
-document.getElementById('invBtn').addEventListener('pointerdown', (e) => {
-  e.preventDefault();
-  vibrate(10); playSound(800,0.06);
-  let s = inventory.length ? inventory.map((it,i)=>`${i+1}. ${it.name} [${it.rarity}] +${Math.floor(it.hp)}HP +${Math.floor(it.dmg)}傷`).join('\n') : '背包空';
-  alert(`背包內容：\n${s}`);
-});
-document.getElementById('settingsBtn').addEventListener('pointerdown', (e) => {
-  e.preventDefault();
-  vibrate(8); playSound(500,0.06);
-  alert('設定（示範）:\n可在此加入音量、觸覺、控制感度設定。');
-});
-
-/* ===============================
-   Tutorial / start flow
-   =============================== */
-const tutorial = document.getElementById('tutorial');
-document.getElementById('gotItBtn').addEventListener('pointerdown', (e)=>{
-  e.preventDefault();
-  tutorial.style.display = 'none';
-  gameStarted = true; // start game loop behaviour
-  // resume audio on first gesture for mobile
-  try{ ensureAudio(); if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume(); }catch(e){}
-  playSound(1000,0.12); vibrate(25);
-});
-
-/* ===============================
-   Simple class selection (for demo)
-   =============================== */
-function selectClass(cls){
-  playerClass = cls;
-  const cfg = { warrior:{speed:4.6,dmg:1.5,aoe:50,pet:false}, mage:{speed:5.4,dmg:1.2,aoe:90,pet:false}, ranger:{speed:5.0,dmg:1.3,aoe:70,pet:true}};
-  const c = cfg[cls] || cfg.ranger;
-  player.speed = c.speed; player.dmgMod = c.dmg; player.aoeRange = c.aoe; player.petActive = c.pet;
-  updateStatusUI();
-}
-// auto choose ranger for demo
-selectClass('ranger');
-
-/* ===============================
-   Small helper: allow double-tap on joystick to dash (optional)
-   =============================== */
-let lastJoystickTap = 0;
-joystickBg.addEventListener('pointerdown', (e)=>{
-  const now = Date.now();
-  if(now - lastJoystickTap < 280){
-    // dash forward in current direction
-    if(Math.abs(joy.dx)>0.2 || Math.abs(joy.dy)>0.2){
-      player.x += joy.dx*40; player.y += joy.dy*40; createParticles(player.x,player.y,'#FFAA66',16,6); playSound(1300,0.08); vibrate(20);
-    }
-    lastJoystickTap = 0;
-  } else lastJoystickTap = now;
-});
-
-/* ===============================
-   Expose some debug functions to window
-   =============================== */
-window._useSkill = useSkill;
-window._spawn = spawnMonster;
-window._stats = ()=>({player,monsters:monsters.length,inv:inventory.length});
+document.getElementById('classSelect').style.display='flex';
+initPlayer();
+gameLoop();
 </script>
 </body>
 </html>
